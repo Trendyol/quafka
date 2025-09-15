@@ -1,0 +1,3 @@
+ignore:
+  - "examples/spring-boot"
+  - "examples/console"

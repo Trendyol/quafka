@@ -1,0 +1,30 @@
+{
+  "extends": [
+    "config:recommended",
+    "group:allNonMajor",
+    "group:monorepos",
+    "schedule:earlyMondays"
+  ],
+  "branchPrefix": "renovate/",
+  "packageRules": [
+    {
+      "allowedVersions": "!/M/",
+      "matchPackageNames": [
+        "/io.kotest:kotest.*/"
+      ]
+    },
+    {
+      "matchDepNames": [
+        "/org.jetbrains.kotlin.*/",
+        "/com.google.devtools.ksp.*/"
+      ],
+      "groupName": "kotlin"
+    },
+    {
+      "matchDepNames": [
+        "/.*springframework.*/"
+      ],
+      "groupName": "spring"
+    }
+  ]
+}

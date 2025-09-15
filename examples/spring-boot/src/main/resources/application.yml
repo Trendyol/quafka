@@ -1,0 +1,13 @@
+
+application:
+  name: "quafka-spring-example"
+
+server:
+  port: 8001
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operations-sorter: method
