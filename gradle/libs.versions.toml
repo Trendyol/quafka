@@ -5,7 +5,6 @@ spring-boot = "3.5.4"
 spring-dependency-management = "1.1.7"
 spring-doc-open-api = "2.8.9"
 jackson = "2.19.2"
-kediatr = "3.1.3"
 spring-framework = "5.3.31"
 resillience4j = "2.3.0"
 slf4j = "2.0.17"
@@ -14,9 +13,6 @@ logback-classic= "1.5.18"
 spotless = "7.2.1"
 dokka = "2.0.0"
 kover = "0.9.1"
-gradle-release = "3.1.0"
-nexusPublish = "2.0.0"
-shadow = "8.1.1"
 #junit = "5.13.4"
 kotest = "5.9.1"
 embedded-kafka = "3.9.1"
@@ -59,9 +55,6 @@ logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "lo
 # resillience4j
 resillience4j-kotlin = { module = "io.github.resilience4j:resilience4j-kotlin", version.ref = "resillience4j" }
 resillience4j-retry = { module = "io.github.resilience4j:resilience4j-retry", version.ref = "resillience4j" }
-
-# kediatr
-kediatr-core = { module = "com.trendyol:kediatr-core", version.ref = "kediatr" }
 
 # Testing
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx" }

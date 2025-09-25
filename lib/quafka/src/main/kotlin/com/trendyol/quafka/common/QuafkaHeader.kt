@@ -23,10 +23,10 @@ class QuafkaHeader : Header {
 
     override fun value(): ByteArray = inner.value()
 
-    override fun equals(o: Any?): Boolean {
-        if (this === o) return true
-        if (o == null || o !is Header) return false
-        val header = o
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || other !is Header) return false
+        val header = other
         return key() == header.key() && value().contentEquals(header.value())
     }
 
