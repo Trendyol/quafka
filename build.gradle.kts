@@ -8,12 +8,11 @@ plugins {
     alias(libs.plugins.testLogger)
     alias(libs.plugins.kover)
     alias(libs.plugins.maven.publish)
-    // id("quafka-publishing-github") apply false
     idea
     java
 }
 group = "com.trendyol"
-version = version()
+version = CI.version(project)
 
 allprojects {
     extra.set("dokka.outputDirectory", rootDir.resolve("docs"))
@@ -127,7 +126,6 @@ val publishedProjects = listOf(
 subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
     apply {
         plugin("java")
-        // plugin("quafka-publishing-github")
         plugin(rootProject.libs.plugins.maven.publish.pluginId)
     }
 
@@ -163,13 +161,4 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
         withSourcesJar()
         // withJavadocJar()
     }
-}
-
-fun version(): String = when {
-    System.getenv("SNAPSHOT") != null -> {
-        println("SNAPSHOT: ${System.getenv("SNAPSHOT")}")
-        project.properties["snapshot"].toString()
-    }
-
-    else -> project.properties["version"].toString()
 }

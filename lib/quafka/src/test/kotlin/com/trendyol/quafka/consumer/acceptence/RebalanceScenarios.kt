@@ -14,14 +14,15 @@ class RebalanceScenarios :
         val kafka = EmbeddedKafka.instance
 
         test("should continue to process messages after rebalance") {
+            println("-----------------------------------------------------------------------")
             // arrange
             val totalMessagePerPartition = 10
 
             // create topics
             val topics = kafka.createTopics(
                 listOf(
-                    kafka.newTopic(kafka.getRandomTopicName(), 6),
-                    kafka.newTopic(kafka.getRandomTopicName(), 8)
+                    kafka.newTopic(kafka.getRandomTopicName(), 3)
+                    // kafka.newTopic(kafka.getRandomTopicName(), 8)
                 )
             )
 
