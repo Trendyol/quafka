@@ -29,8 +29,8 @@ jobs:
         env:
           SNAPSHOT: true
           BUILD_NUMBER: ${{ github.run_number }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SONARTYPE_GPG_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SONARTYPE_GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONARTYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONARTYPE_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
