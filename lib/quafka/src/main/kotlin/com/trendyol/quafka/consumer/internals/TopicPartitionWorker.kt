@@ -31,7 +31,8 @@ internal class TopicPartitionWorker<TKey, TValue>(
     private val topicPartition: TopicPartition,
     private val quafkaConsumerOptions: QuafkaConsumerOptions<TKey, TValue>,
     val subscriptionOptions: TopicSubscriptionOptions<TKey, TValue>,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    assignedOffset: Long
 ) {
     private var consumerContext = ConsumerContext(
         topicPartition = topicPartition,
@@ -53,7 +54,12 @@ internal class TopicPartitionWorker<TKey, TValue>(
     init {
         startProcessLoop()
         setupCancellation()
-        logger.info("Worker started. | topic partition: {}", topicPartition)
+        logger.info(
+            "Worker started. | topic: {} | partition: {} | assigned offset: {}",
+            topicPartition.topic(),
+            topicPartition.partition(),
+            assignedOffset
+        )
     }
 
     /**
@@ -195,15 +201,17 @@ internal class TopicPartitionWorker<TKey, TValue>(
     private fun setupCancellation() {
         scope.coroutineContext.job.invokeOnCompletion { exception ->
             logger.info(
-                "Worker stopping... | topic partition: {} | reason: {}",
-                topicPartition,
+                "Worker stopping... | topic: {} | partition: {} | reason: {}",
+                topicPartition.topic(),
+                topicPartition.partition(),
                 exception.getReason(),
                 exception?.cause
             )
             inFlightMessages.close()
             logger.info(
-                "Worker stopped. | topic partition: {} | reason: {}",
-                topicPartition,
+                "Worker stopped. | topic: {} | partition: {} | reason: {}",
+                topicPartition.topic(),
+                topicPartition.partition(),
                 exception.getReason(),
                 exception?.cause
             )

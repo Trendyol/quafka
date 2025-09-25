@@ -1,5 +1,7 @@
 package com.trendyol.quafka.consumer.internals
 
+import com.trendyol.quafka.common.rethrowIfFatal
+import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.Events
 import com.trendyol.quafka.consumer.Events.toDetail
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
@@ -79,12 +81,16 @@ internal class OffsetManager<TKey, TValue>(
             }
 
             val latestOffsets = getLatest(allWaitingOffsets)
+            if (logger.isTraceEnabled) {
+                logger.debug("offsets will be committed: {}", latestOffsets)
+            }
             try {
                 commitOffsetSync(latestOffsets)
                 for ((assigned, offsets) in allWaitingOffsets) {
                     assigned.completeOffsets(offsets)
                 }
             } catch (ex: Throwable) {
+                ex.rethrowIfFatal()
                 logger.warn("Error flushing offsets sync. | latest offsets: {}", latestOffsets, ex)
                 for ((assigned, offsets) in allWaitingOffsets) {
                     assigned.completeOffsets(offsets, ex)
@@ -143,6 +149,7 @@ internal class OffsetManager<TKey, TValue>(
                     assigned.completeOffsets(offsets)
                 }
             } catch (ex: Throwable) {
+                ex.rethrowIfFatalOrCancelled()
                 logger.warn("Error flushing offsets async. | latest offsets: {}", latestOffsets, ex)
                 for ((assigned, offsets) in allWaitingOffsets) {
                     assigned.completeOffsets(offsets, ex)

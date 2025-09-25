@@ -40,7 +40,8 @@ class TopicPartitionWorkerTests :
             topicPartition = topicPartition,
             quafkaConsumerOptions = quafkaConsumerOptions,
             scope = CoroutineScope(Dispatchers.IO + job),
-            subscriptionOptions = subscriptionOptions
+            subscriptionOptions = subscriptionOptions,
+            assignedOffset = 0
         )
 
         test("should return false when worker is stopped cancelled") {

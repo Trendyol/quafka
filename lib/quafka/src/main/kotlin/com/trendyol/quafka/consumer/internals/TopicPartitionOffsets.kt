@@ -7,8 +7,7 @@ import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.util.concurrent.ConcurrentSkipListMap
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.*
 
 /**
  * Manages offset states for a specific [TopicPartition].
@@ -233,11 +232,22 @@ internal class TopicPartitionOffsets(
                 if (offsetRecord.isCompleted) {
                     if (offsetRecord.isSuccessfullyCompleted()) {
                         if (logger.isTraceEnabled) {
-                            logger.trace("Commit offset completed. | topic partition:{} | offset:{}", topicPartition, offset)
+                            logger.trace(
+                                "Commit offset completed. | topic: {} | partition: {} | offset:{}",
+                                topicPartition.topic(),
+                                topicPartition.partition(),
+                                offset
+                            )
                         }
                         tryToUpdateLatestCommittedOffset(offset)
                     } else {
-                        logger.warn("Commit offset failed. | topic partition:{} | offset:{}", topicPartition, offset, exception)
+                        logger.warn(
+                            "Commit offset failed. | topic: {} | partition: {} | offset:{}",
+                            topicPartition.topic(),
+                            topicPartition.partition(),
+                            offset,
+                            exception
+                        )
                     }
                     if (offsetRecord.isCommitMode) {
                         pendingCommitCount.decrementAndGet()
@@ -245,8 +255,9 @@ internal class TopicPartitionOffsets(
                     this.offsets.remove(offset)
                 } else {
                     logger.warn(
-                        "Commit offset failed, will try to commit again. | topic partition:{} | offset:{}",
-                        topicPartition,
+                        "Commit offset failed, will try to commit again. | topic: {} | partition: {} | offset:{}",
+                        topicPartition.topic(),
+                        topicPartition.partition(),
                         offset,
                         exception
                     )

@@ -84,7 +84,7 @@ internal class PartitionAssignmentManager<TKey, TValue>(
         if (revokedTopicPartitions.isEmpty()) {
             return
         }
-        logger.info("Partitions revoked from consumer. | partitions: {}", revokedTopicPartitions)
+        logger.info("Partitions revoked from consumer. | {}", revokedTopicPartitions.toFormattedString())
 
         val partitionsToFlush = revokedTopicPartitions
             .mapNotNull { revokedPartition ->
@@ -159,9 +159,9 @@ internal class PartitionAssignmentManager<TKey, TValue>(
         logger.info(
             "Partitions assignment changed. | assigned partitions: {}" +
                 " | revoked partitions: {} | partitions that remain the same: {}",
-            newAssignedTopicPartitions,
-            revokedTopicPartitions,
-            sameTopicPartitions
+            newAssignedTopicPartitions.values,
+            revokedTopicPartitions.toFormattedString(),
+            sameTopicPartitions.values
         )
         eventPublisher.publish(
             Events.RebalanceCompleted(

@@ -54,9 +54,9 @@ internal class PollingConsumer<TKey, TValue>(
      * @throws Throwable If an error occurs during startup.
      */
     internal fun start() {
-        logger.info("Quafka consumer starting.. ")
+        val topics = quafkaConsumerOptions.subscribedTopics()
+        logger.info("Quafka consumer starting... | subscribing topics: ${topics.joinToString()} ")
         try {
-            val topics = quafkaConsumerOptions.subscribedTopics()
             consumer.subscribe(topics, this)
             eventPublisher.publish(Events.Subscribed(topics, quafkaConsumerOptions.toDetail()))
             scope.launch {
@@ -68,6 +68,7 @@ internal class PollingConsumer<TKey, TValue>(
                 }
             }
         } catch (exception: Throwable) {
+            exception.rethrowIfFatal()
             logger.warn("An error occurred when starting consumer", exception)
             throw exception
         }
@@ -227,7 +228,10 @@ internal class PollingConsumer<TKey, TValue>(
      */
     override fun onPartitionsRevoked(revokedPartitions: MutableCollection<TopicPartition>) {
         if (logger.isDebugEnabled) {
-            logger.debug("Partitions revoked: {}", revokedPartitions)
+            logger.debug(
+                "Partitions revoked: {}",
+                revokedPartitions.toFormattedString()
+            )
         }
         partitionAssignmentManager.revokePartitions(revokedPartitions)
         eventPublisher.publish(Events.PartitionsRevoked(revokedPartitions, quafkaConsumerOptions.toDetail()))
@@ -242,12 +246,11 @@ internal class PollingConsumer<TKey, TValue>(
      * @param assignedPartitions The collection of topic partitions that have been assigned.
      */
     override fun onPartitionsAssigned(assignedPartitions: MutableCollection<TopicPartition>) {
-        if (logger.isDebugEnabled) {
-            logger.debug("Partitions assigned: {}", assignedPartitions)
-        }
-
         val offsets = assignedPartitions.map { tp ->
             TopicPartitionOffset(tp, consumer.position(tp))
+        }
+        if (logger.isDebugEnabled) {
+            logger.debug("Partitions assigned. | {}", offsets)
         }
         partitionAssignmentManager.assignPartitions(offsets)
         eventPublisher.publish(Events.PartitionsAssigned(offsets, quafkaConsumerOptions.toDetail()))

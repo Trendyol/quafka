@@ -102,7 +102,8 @@ internal class AssignedTopicPartition<TKey, TValue> private constructor(
             topicPartition = topicPartition,
             scope = scope,
             subscriptionOptions = subscriptionOptions,
-            quafkaConsumerOptions = quafkaConsumerOptions
+            quafkaConsumerOptions = quafkaConsumerOptions,
+            assignedOffset = this.assignedOffset
         )
     }
     private val worker by workerFactory
@@ -151,7 +152,12 @@ internal class AssignedTopicPartition<TKey, TValue> private constructor(
             autoResumeJob?.cancel()
             autoResumeJob = null
             if (logger.isDebugEnabled) {
-                logger.debug("Consumer resumed from offset: {}", offset)
+                logger.debug(
+                    "Consumer will be resumed. | topic: {} | partition: {} | offset: {}",
+                    topicPartition.topic(),
+                    topicPartition.partition(),
+                    offset
+                )
             }
         }
     }

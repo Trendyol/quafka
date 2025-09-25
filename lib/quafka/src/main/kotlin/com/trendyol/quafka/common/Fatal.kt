@@ -11,8 +11,13 @@ fun Throwable.isFatal(): Boolean =
 
 suspend fun Throwable.rethrowIfFatalOrCancelled(context: CoroutineContext? = null) {
     (context ?: coroutineContext).ensureActive()
-    return when (this) {
-        is Error, is CancellationException -> throw this
-        else -> Unit
+    if (isFatal()) {
+        throw this
+    }
+}
+
+fun Throwable.rethrowIfFatal() {
+    if (this.isFatal()) {
+        throw this
     }
 }

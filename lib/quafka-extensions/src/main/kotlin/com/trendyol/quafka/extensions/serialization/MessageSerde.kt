@@ -22,7 +22,7 @@ sealed class DeserializationResult {
         val cause: Throwable? = null
     ) : DeserializationResult() {
         override fun toString(): String =
-            "DeserializationError ( topicPartition: $topicPartition | offset: $offset | message: $message | cause: $cause )"
+            "DeserializationError ( topic: ${topicPartition.topic()} | partition: ${topicPartition.partition()} | offset: $offset | message: $message | cause: $cause )"
 
         fun toException(): TopicPartitionProcessException = TopicPartitionProcessException(
             topicPartition = topicPartition,
