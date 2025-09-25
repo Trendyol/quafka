@@ -30,8 +30,8 @@ jobs:
       - name: Gradle Build and Test
         run: gradle --no-configuration-cache publish
         env:
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.gpg_private_key }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.gpg_passphrase }}
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ossrh_username }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ossrh_pass }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SONARTYPE_GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SONARTYPE_GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONARTYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONARTYPE_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
