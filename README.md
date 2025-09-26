@@ -1,4 +1,6 @@
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/quafka/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/quafka)
+
 <h1 align="center">Quafka</h1>
 <div align="center">
 <p >
