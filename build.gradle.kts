@@ -124,6 +124,7 @@ val publishedProjects = listOf(
 )
 
 subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
+    println("publishing $name")
     apply {
         plugin("java")
         plugin(rootProject.libs.plugins.maven.publish.pluginId)
