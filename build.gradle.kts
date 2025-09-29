@@ -130,6 +130,23 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
         plugin(rootProject.libs.plugins.maven.publish.pluginId)
     }
 
+    configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/Trenyol/quafka")
+                credentials {
+                    username = System.getenv("GITHUB_ACTOR")
+                    password = System.getenv("GITHUB_TOKEN")
+                }
+            }
+        }
+        publications {
+            register<MavenPublication>("gpr") {
+                from(components["java"])
+            }
+        }
+    }
     mavenPublishing {
         coordinates(groupId = rootProject.group.toString(), artifactId = project.name, version = rootProject.version.toString())
         publishToMavenCentral()
