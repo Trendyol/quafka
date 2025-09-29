@@ -132,7 +132,6 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
 
     configure<JavaPluginExtension> {
         withSourcesJar()
-        withJavadocJar()
     }
 
     configure<PublishingExtension> {
