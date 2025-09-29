@@ -138,7 +138,7 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
         repositories {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/Trenyol/quafka")
+                url = uri("https://maven.pkg.github.com/Trendyol/quafka")
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
