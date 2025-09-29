@@ -130,6 +130,11 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
         plugin(rootProject.libs.plugins.maven.publish.pluginId)
     }
 
+    configure<JavaPluginExtension> {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
     configure<PublishingExtension> {
         repositories {
             maven {
@@ -141,15 +146,11 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
                 }
             }
         }
-        publications {
-            register<MavenPublication>("gpr") {
-                from(components["java"])
-            }
-        }
     }
     mavenPublishing {
-        coordinates(groupId = rootProject.group.toString(), artifactId = project.name, version = rootProject.version.toString())
         publishToMavenCentral()
+        coordinates(groupId = rootProject.group.toString(), artifactId = project.name, version = rootProject.version.toString())
+
         pom {
             name.set(project.name)
             description.set(project.properties["projectDescription"].toString())
@@ -172,11 +173,8 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
                 url.set(project.properties["projectUrl"].toString())
             }
         }
-        signAllPublications()
-    }
-
-    java {
-        withSourcesJar()
-        // withJavadocJar()
+        if (isGithubActions) {
+            signAllPublications()
+        }
     }
 }

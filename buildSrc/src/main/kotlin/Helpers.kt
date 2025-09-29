@@ -41,3 +41,5 @@ val runningOnCI: Boolean
 
 val Provider<PluginDependency>.pluginId: String
     get() = get().pluginId
+
+val isGithubActions: Boolean = System.getenv("GITHUB_ACTIONS") == "true"
