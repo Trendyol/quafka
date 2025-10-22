@@ -3,10 +3,10 @@ package com.trendyol.quafka.extensions.consumer.batch
 import com.trendyol.quafka.*
 import com.trendyol.quafka.common.*
 import com.trendyol.quafka.common.HeaderParsers.asString
+import com.trendyol.quafka.consumer.TopicPartition
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
-import org.apache.kafka.common.TopicPartition
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 

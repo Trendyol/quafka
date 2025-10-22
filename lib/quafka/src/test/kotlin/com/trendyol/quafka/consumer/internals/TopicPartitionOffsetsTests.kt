@@ -1,13 +1,13 @@
 package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.TopicPartitionBasedMessageBuilder
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.CommitOptions
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.*
 import io.mockk.*
 import kotlinx.coroutines.*
-import org.apache.kafka.common.TopicPartition
 
 class TopicPartitionOffsetsTests :
     FunSpec({

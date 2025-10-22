@@ -18,8 +18,7 @@ abstract class JsonMessageSerde<TKey, TValue>(
         },
         onFailure = { ex ->
             DeserializationResult.Error(
-                topicPartition = incomingMessage.topicPartition,
-                offset = incomingMessage.offset,
+                topicPartitionOffset = incomingMessage.topicPartitionOffset,
                 message = "error occurred deserializing value as json",
                 cause = ex
             )
@@ -37,8 +36,7 @@ abstract class JsonMessageSerde<TKey, TValue>(
         },
         onFailure = { ex ->
             DeserializationResult.Error(
-                topicPartition = incomingMessage.topicPartition,
-                offset = incomingMessage.offset,
+                topicPartitionOffset = incomingMessage.topicPartitionOffset,
                 message = "error occurred deserializing key",
                 cause = ex
             )
@@ -57,8 +55,7 @@ abstract class JsonMessageSerde<TKey, TValue>(
         val typeResult = resolveType(jsonNode, incomingMessage)
         if (typeResult.isFailure) {
             return DeserializationResult.Error(
-                topicPartition = incomingMessage.topicPartition,
-                offset = incomingMessage.offset,
+                topicPartitionOffset = incomingMessage.topicPartitionOffset,
                 message = "An error occurred when resolving type",
                 cause = typeResult.exceptionOrNull()
             )
@@ -66,8 +63,7 @@ abstract class JsonMessageSerde<TKey, TValue>(
 
         val resolvedType = typeResult.getOrNull()
             ?: return DeserializationResult.Error(
-                topicPartition = incomingMessage.topicPartition,
-                offset = incomingMessage.offset,
+                topicPartitionOffset = incomingMessage.topicPartitionOffset,
                 message = "Type not resolved!!"
             )
 
@@ -76,8 +72,7 @@ abstract class JsonMessageSerde<TKey, TValue>(
             onSuccess = { DeserializationResult.Deserialized(it) },
             onFailure = { ex ->
                 DeserializationResult.Error(
-                    topicPartition = incomingMessage.topicPartition,
-                    offset = incomingMessage.offset,
+                    topicPartitionOffset = incomingMessage.topicPartitionOffset,
                     message = "error occurred binding message to object, body: $jsonNode, type: ${resolvedType.name}",
                     cause = ex
                 )

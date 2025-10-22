@@ -1,3 +1,4 @@
+
 dependencies {
     api(project(":lib:quafka"))
     api(libs.jackson.core)

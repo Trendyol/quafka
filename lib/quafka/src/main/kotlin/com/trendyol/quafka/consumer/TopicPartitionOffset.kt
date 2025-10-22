@@ -1,6 +1,7 @@
 package com.trendyol.quafka.consumer
 
-import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Represents a Kafka topic partition and offset.
@@ -14,15 +15,24 @@ data class TopicPartitionOffset(
     val partition: Int,
     val offset: Long
 ) {
-    constructor(topicPartition: TopicPartition, offset: Long) : this(topicPartition.topic(), topicPartition.partition(), offset)
+    constructor(topicPartition: TopicPartition, offset: Long) : this(topicPartition.topic, topicPartition.partition, offset)
 
-    val topicPartition: TopicPartition = TopicPartition(topic, partition)
+    val topicPartition: TopicPartition
+        get() = TopicPartition(topic, partition)
 
-    override fun toString(): String = "( topic: $topic | partition: $partition | offset: $offset )"
+    override fun toString(): String = "topic: $topic | partition: $partition | offset: $offset"
 }
 
-internal fun Collection<TopicPartition>.toFormattedString(): String = "[${
+internal fun Collection<TopicPartition>.toLogString(): String = "[${
     this.joinToString {
-        "( topic: ${it.topic()} | partition: ${it.partition()} )"
+        "( ${it.toLogString()} )"
+    }
+}]"
+
+internal fun Map<TopicPartition, OffsetAndMetadata>.toLogString(): String = "[${
+    this.entries.joinToString {
+        "( ${it.key.toLogString()} | offset: ${it.value.offset()} | metadata: ${it.value.metadata()} | epoch: ${
+            it.value.leaderEpoch().getOrNull() ?: ""
+        } )"
     }
 }]"

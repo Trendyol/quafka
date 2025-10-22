@@ -1,8 +1,7 @@
 package com.trendyol.quafka.extensions.serialization
 
-import com.trendyol.quafka.consumer.IncomingMessage
+import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.extensions.common.TopicPartitionProcessException
-import org.apache.kafka.common.TopicPartition
 
 interface MessageSerde<TKey, TValue> {
     fun deserializeValue(incomingMessage: IncomingMessage<TKey, TValue>): DeserializationResult
@@ -16,17 +15,15 @@ interface MessageSerde<TKey, TValue> {
 
 sealed class DeserializationResult {
     data class Error(
-        val topicPartition: TopicPartition,
-        val offset: Long,
+        val topicPartitionOffset: TopicPartitionOffset,
         val message: String,
         val cause: Throwable? = null
     ) : DeserializationResult() {
         override fun toString(): String =
-            "DeserializationError ( topic: ${topicPartition.topic()} | partition: ${topicPartition.partition()} | offset: $offset | message: $message | cause: $cause )"
+            "DeserializationError ($topicPartitionOffset | message: $message | cause: $cause )"
 
         fun toException(): TopicPartitionProcessException = TopicPartitionProcessException(
-            topicPartition = topicPartition,
-            offset = offset,
+            topicPartitionOffset = topicPartitionOffset,
             message = this.toString(),
             cause = cause
         )
@@ -34,10 +31,9 @@ sealed class DeserializationResult {
 
     data object Null : DeserializationResult() {
         fun toError(
-            topicPartition: TopicPartition,
-            offset: Long,
+            topicPartitionOffset: TopicPartitionOffset,
             message: String
-        ) = Error(topicPartition, offset, message)
+        ) = Error(topicPartitionOffset, message)
     }
 
     data class Deserialized(

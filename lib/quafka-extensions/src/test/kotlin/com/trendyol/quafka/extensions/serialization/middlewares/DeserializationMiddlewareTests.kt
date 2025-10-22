@@ -52,8 +52,7 @@ class DeserializationMiddlewareTests :
 
             val exception = shouldThrow<TopicPartitionProcessException> { sut.execute(context) { } }
 
-            exception.topicPartition shouldBeEqual context.message.topicPartition
-            exception.offset shouldBeEqual context.message.offset
+            exception.topicPartitionOffset shouldBeEqual context.message.topicPartitionOffset
         }
 
         test("should throw exception when deserialized key is null") {
@@ -71,7 +70,6 @@ class DeserializationMiddlewareTests :
 
             val exception = shouldThrow<TopicPartitionProcessException> { sut.execute(context) { } }
 
-            exception.topicPartition shouldBeEqual context.message.topicPartition
-            exception.offset shouldBeEqual context.message.offset
+            exception.topicPartitionOffset shouldBeEqual context.message.topicPartitionOffset
         }
     })

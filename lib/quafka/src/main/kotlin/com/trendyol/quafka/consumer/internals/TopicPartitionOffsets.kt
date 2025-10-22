@@ -1,9 +1,10 @@
 package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.consumer.IncomingMessage
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.CommitOptions
+import com.trendyol.quafka.consumer.toLogString
 import kotlinx.coroutines.*
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.util.concurrent.ConcurrentSkipListMap
@@ -233,18 +234,16 @@ internal class TopicPartitionOffsets(
                     if (offsetRecord.isSuccessfullyCompleted()) {
                         if (logger.isTraceEnabled) {
                             logger.trace(
-                                "Commit offset completed. | topic: {} | partition: {} | offset:{}",
-                                topicPartition.topic(),
-                                topicPartition.partition(),
+                                "Commit offset completed. | {} | offset: {}",
+                                topicPartition.toLogString(),
                                 offset
                             )
                         }
                         tryToUpdateLatestCommittedOffset(offset)
                     } else {
                         logger.warn(
-                            "Commit offset failed. | topic: {} | partition: {} | offset:{}",
-                            topicPartition.topic(),
-                            topicPartition.partition(),
+                            "Commit offset failed. | {} | offset: {}",
+                            topicPartition.toLogString(),
                             offset,
                             exception
                         )
@@ -255,9 +254,8 @@ internal class TopicPartitionOffsets(
                     this.offsets.remove(offset)
                 } else {
                     logger.warn(
-                        "Commit offset failed, will try to commit again. | topic: {} | partition: {} | offset:{}",
-                        topicPartition.topic(),
-                        topicPartition.partition(),
+                        "Commit offset failed, will try to commit again. | {} | offset: {}",
+                        topicPartition.toLogString(),
                         offset,
                         exception
                     )

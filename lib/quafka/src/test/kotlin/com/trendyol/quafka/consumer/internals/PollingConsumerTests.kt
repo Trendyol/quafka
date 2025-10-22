@@ -2,12 +2,12 @@ package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.WaitGroup
 import com.trendyol.quafka.common.Waiter
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.*
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.*
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import java.time.Duration
 import java.util.Optional

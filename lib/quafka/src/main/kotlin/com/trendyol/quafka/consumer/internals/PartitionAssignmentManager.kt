@@ -6,7 +6,6 @@ import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import com.trendyol.quafka.consumer.internals.AssignedTopicPartition.Companion.UNASSIGNED_OFFSET
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import java.util.concurrent.*
 
@@ -84,7 +83,6 @@ internal class PartitionAssignmentManager<TKey, TValue>(
         if (revokedTopicPartitions.isEmpty()) {
             return
         }
-        logger.info("Partitions revoked from consumer. | {}", revokedTopicPartitions.toFormattedString())
 
         val partitionsToFlush = revokedTopicPartitions
             .mapNotNull { revokedPartition ->
@@ -96,6 +94,7 @@ internal class PartitionAssignmentManager<TKey, TValue>(
             }
         offsetManager.flushOffsetsSync(revokedTopicPartitions)
         partitionsToFlush.forEach { it.close() }
+        logger.info("Partitions revoked from consumer. | {}", revokedTopicPartitions.toLogString())
     }
 
     /**
@@ -160,7 +159,7 @@ internal class PartitionAssignmentManager<TKey, TValue>(
             "Partitions assignment changed. | assigned partitions: {}" +
                 " | revoked partitions: {} | partitions that remain the same: {}",
             newAssignedTopicPartitions.values,
-            revokedTopicPartitions.toFormattedString(),
+            revokedTopicPartitions.toLogString(),
             sameTopicPartitions.values
         )
         eventPublisher.publish(

@@ -8,7 +8,7 @@ import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.*
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.errors.WakeupException
+import org.apache.kafka.common.errors.*
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.util.concurrent.atomic.AtomicBoolean
@@ -110,6 +110,7 @@ internal class PollingConsumer<TKey, TValue>(
         while (scope.isActive && !isClosing.get()) {
             try {
                 processWaitingTasks()
+                val now = quafkaConsumerOptions.timeProvider.now()
                 val records = consumer.poll(pollTimeout)
                 if (records.isEmpty) {
                     continue
@@ -118,14 +119,14 @@ internal class PollingConsumer<TKey, TValue>(
                     val partitionRecords = records.records(topicPartition)
                     val messages = ArrayList<IncomingMessage<TKey, TValue>>(partitionRecords.size)
                     partitionRecords.forEach { record ->
-                        messages.add(
-                            IncomingMessage.create(
-                                consumerRecord = record,
-                                incomingMessageStringFormatter = quafkaConsumerOptions.incomingMessageStringFormatter,
-                                groupId = quafkaConsumerOptions.getGroupId(),
-                                clientId = quafkaConsumerOptions.getClientId()
-                            )
+                        val message = IncomingMessage.create(
+                            consumerRecord = record,
+                            incomingMessageStringFormatter = quafkaConsumerOptions.incomingMessageStringFormatter,
+                            groupId = quafkaConsumerOptions.getGroupId(),
+                            clientId = quafkaConsumerOptions.getClientId(),
+                            consumedAt = now
                         )
+                        messages.add(message)
                     }
                     eventPublisher.publish(Events.MessagesReceived(messages, quafkaConsumerOptions.toDetail()))
                     dispatch(topicPartition, messages)
@@ -230,7 +231,7 @@ internal class PollingConsumer<TKey, TValue>(
         if (logger.isDebugEnabled) {
             logger.debug(
                 "Partitions revoked: {}",
-                revokedPartitions.toFormattedString()
+                revokedPartitions.toLogString()
             )
         }
         partitionAssignmentManager.revokePartitions(revokedPartitions)

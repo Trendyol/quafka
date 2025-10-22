@@ -2,7 +2,6 @@ package com.trendyol.quafka.consumer
 
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import kotlinx.coroutines.isActive
-import org.apache.kafka.common.TopicPartition
 import kotlin.coroutines.CoroutineContext
 
 /**

@@ -94,6 +94,7 @@ class KafkaExtension(
         props[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = getBootstrapServers()
         props[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
         props[ConsumerConfig.METADATA_MAX_AGE_CONFIG] = 3.seconds.inWholeMilliseconds.toString()
+        //  props[ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG] = 30.seconds.inWholeMilliseconds.toString()
         // props[ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG] = "org.apache.kafka.clients.consumer.CooperativeStickyAssignor"
         return props
     }

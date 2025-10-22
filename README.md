@@ -95,7 +95,7 @@ Quafka-Extensions is a companion module designed to extend Quafka with advanced,
 Add the following dependency to your `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation("com.trendyol:quafka:0.1.0")
+    implementation("com.trendyol:quafka:0.1.1")
 }
 ```
 
@@ -203,7 +203,7 @@ Contributions are welcome! Whether it's:
 
 
 ## License
-Quafka is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Quafka is licensed under the Apache License. See the [LICENSE](LICENSE) file for details.
 
 
 

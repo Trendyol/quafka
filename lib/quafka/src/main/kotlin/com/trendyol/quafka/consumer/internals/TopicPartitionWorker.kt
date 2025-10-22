@@ -8,7 +8,6 @@ import com.trendyol.quafka.consumer.messageHandlers.*
 import com.trendyol.quafka.logging.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.util.concurrent.atomic.AtomicBoolean
@@ -55,9 +54,8 @@ internal class TopicPartitionWorker<TKey, TValue>(
         startProcessLoop()
         setupCancellation()
         logger.info(
-            "Worker started. | topic: {} | partition: {} | assigned offset: {}",
-            topicPartition.topic(),
-            topicPartition.partition(),
+            "Worker started. | {} | assigned offset: {}",
+            topicPartition.toLogString(),
             assignedOffset
         )
     }
@@ -201,17 +199,15 @@ internal class TopicPartitionWorker<TKey, TValue>(
     private fun setupCancellation() {
         scope.coroutineContext.job.invokeOnCompletion { exception ->
             logger.info(
-                "Worker stopping... | topic: {} | partition: {} | reason: {}",
-                topicPartition.topic(),
-                topicPartition.partition(),
+                "Worker stopping... | {} | reason: {}",
+                topicPartition.toLogString(),
                 exception.getReason(),
                 exception?.cause
             )
             inFlightMessages.close()
             logger.info(
-                "Worker stopped. | topic: {} | partition: {} | reason: {}",
-                topicPartition.topic(),
-                topicPartition.partition(),
+                "Worker stopped. | {} | reason: {}",
+                topicPartition.toLogString(),
                 exception.getReason(),
                 exception?.cause
             )

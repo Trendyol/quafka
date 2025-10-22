@@ -443,13 +443,15 @@ class FailedMessageRouter<TKey, TValue>(
                 if (nextOverall > strategy.maxTotalRetryAttempts) {
                     return RetryOutcome.Error
                 }
-                logger
-                    .atDebug()
-                    .enrichWithConsumerContext(consumerContext)
-                    .log(
-                        "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
-                        incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                    )
+                if (logger.isDebugEnabled) {
+                    logger
+                        .atDebug()
+                        .enrichWithConsumerContext(consumerContext)
+                        .log(
+                            "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
+                            incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
+                        )
+                }
 
                 val bucket = strategy.findBucket(calculatedDelay)
                 if (bucket != null) {
@@ -476,13 +478,15 @@ class FailedMessageRouter<TKey, TValue>(
                 if (nextOverall > strategy.maxTotalRetryAttempts) {
                     return RetryOutcome.Error
                 }
-                logger
-                    .atDebug()
-                    .enrichWithConsumerContext(consumerContext)
-                    .log(
-                        "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
-                        incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                    )
+                if (logger.isDebugEnabled) {
+                    logger
+                        .atDebug()
+                        .enrichWithConsumerContext(consumerContext)
+                        .log(
+                            "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
+                            incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
+                        )
+                }
 
                 val bucket = strategy.findBucket(calculatedDelay)
                 if (bucket != null) {
@@ -495,13 +499,15 @@ class FailedMessageRouter<TKey, TValue>(
                         retryIdentifier = policyIdentifier
                     )
                 } else {
-                    logger
-                        .atDebug()
-                        .enrichWithConsumerContext(consumerContext)
-                        .log(
-                            "No retry bucket for delay | calculated delay = $calculatedDelay | message = {} ",
-                            incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                        )
+                    if (logger.isDebugEnabled) {
+                        logger
+                            .atDebug()
+                            .enrichWithConsumerContext(consumerContext)
+                            .log(
+                                "No retry bucket for delay | calculated delay = $calculatedDelay | message = {} ",
+                                incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
+                            )
+                    }
                     RetryOutcome.Error
                 }
             }

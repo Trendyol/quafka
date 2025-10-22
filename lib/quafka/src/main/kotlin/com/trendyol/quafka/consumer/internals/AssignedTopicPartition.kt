@@ -7,7 +7,6 @@ import com.trendyol.quafka.consumer.configuration.*
 import com.trendyol.quafka.logging.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.*
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.io.Closeable
@@ -62,8 +61,8 @@ internal class AssignedTopicPartition<TKey, TValue> private constructor(
                 keyValuePairs = mutableMapOf<String, Any>(
                     LogParameters.CLIENT_ID to quafkaConsumerOptions.getClientId(),
                     LogParameters.GROUP_ID to quafkaConsumerOptions.getGroupId(),
-                    LogParameters.TOPIC to topicPartition.topic(),
-                    LogParameters.PARTITION to topicPartition.partition()
+                    LogParameters.TOPIC to topicPartition.topic,
+                    LogParameters.PARTITION to topicPartition.partition
                 )
             )
             return AssignedTopicPartition(
@@ -91,9 +90,9 @@ internal class AssignedTopicPartition<TKey, TValue> private constructor(
         private fun <TKey, TValue> QuafkaConsumerOptions<TKey, TValue>.getSubscriptionOptions(topicPartition: TopicPartition) =
             this
                 .getSubscriptionOptionsByTopicName(
-                    topic = topicPartition.topic()
+                    topic = topicPartition.topic
                 ) ?: throw InvalidConfigurationException(
-                "Subscription options not found for topic: ${topicPartition.topic()}"
+                "Subscription options not found for topic: ${topicPartition.topic}"
             )
     }
 
@@ -153,9 +152,8 @@ internal class AssignedTopicPartition<TKey, TValue> private constructor(
             autoResumeJob = null
             if (logger.isDebugEnabled) {
                 logger.debug(
-                    "Consumer will be resumed. | topic: {} | partition: {} | offset: {}",
-                    topicPartition.topic(),
-                    topicPartition.partition(),
+                    "Consumer will be resumed. | {} | offset: {}",
+                    topicPartition.toLogString(),
                     offset
                 )
             }

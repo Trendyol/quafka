@@ -3,7 +3,6 @@ package com.trendyol.quafka.consumer
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import com.trendyol.quafka.events.QuafkaEvent
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
-import org.apache.kafka.common.TopicPartition
 
 object Events {
     data class Subscribed(

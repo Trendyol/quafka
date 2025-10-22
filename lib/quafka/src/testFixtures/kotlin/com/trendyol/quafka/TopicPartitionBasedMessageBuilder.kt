@@ -1,6 +1,6 @@
 package com.trendyol.quafka
 
-import org.apache.kafka.common.TopicPartition
+import com.trendyol.quafka.consumer.TopicPartition
 import java.util.concurrent.atomic.AtomicLong
 
 class TopicPartitionBasedMessageBuilder<TKey, TValue>(

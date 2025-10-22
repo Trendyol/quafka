@@ -4,17 +4,17 @@ import com.trendyol.quafka.common.rethrowIfFatal
 import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.Events
 import com.trendyol.quafka.consumer.Events.toDetail
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
+import com.trendyol.quafka.consumer.toLogString
 import kotlinx.coroutines.CoroutineScope
 import org.apache.kafka.clients.consumer.*
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.WakeupException
 import org.slf4j.Logger
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.*
+import kotlin.collections.isNotEmpty
 import kotlin.coroutines.*
 import kotlin.time.toKotlinDuration
 
@@ -38,8 +38,9 @@ internal class OffsetManager<TKey, TValue>(
 ) {
     private val eventPublisher = quafkaConsumerOptions.eventBus
     private val commitSequence = AtomicLong(0)
+
+    @Volatile
     private var latestFlushCommitAt = quafkaConsumerOptions.timeProvider.now()
-    private val lock = ReentrantReadWriteLock()
     private val topicPartitionOffsets: ConcurrentHashMap<TopicPartition, TopicPartitionOffsets> = ConcurrentHashMap()
 
     fun register(topicPartition: TopicPartition, scope: CoroutineScope): TopicPartitionOffsets = topicPartitionOffsets.computeIfAbsent(
@@ -59,7 +60,7 @@ internal class OffsetManager<TKey, TValue>(
     fun tryToFlushOffsets() {
         val now = this.quafkaConsumerOptions.timeProvider.now()
         val diff = Duration.between(latestFlushCommitAt, now).toKotlinDuration()
-        val pendingCommits = lock.read { topicPartitionOffsets.values.any { it.hasPendingCommit() } }
+        val pendingCommits = topicPartitionOffsets.values.any { it.hasPendingCommit() }
         if (diff > quafkaConsumerOptions.commitOptions.duration || pendingCommits) {
             flushOffsetsSync()
             this.latestFlushCommitAt = now
@@ -74,29 +75,27 @@ internal class OffsetManager<TKey, TValue>(
      * @param topicPartitions Optional collection of topic partitions to flush. If empty, flushes all.
      */
     fun flushOffsetsSync(topicPartitions: Collection<TopicPartition> = emptyList()) {
-        lock.write {
-            val allWaitingOffsets = getReadyOffsets(topicPartitions)
-            if (allWaitingOffsets.isEmpty()) {
-                return
-            }
+        val allWaitingOffsets = getReadyOffsets(topicPartitions)
+        if (allWaitingOffsets.isEmpty()) {
+            return
+        }
 
-            val latestOffsets = getLatest(allWaitingOffsets)
-            if (logger.isTraceEnabled) {
-                logger.debug("offsets will be committed: {}", latestOffsets)
+        val latestOffsets = getLatest(allWaitingOffsets)
+        if (logger.isTraceEnabled) {
+            logger.debug("offsets will be committed: {}", latestOffsets.toLogString())
+        }
+        try {
+            commitOffsetSync(latestOffsets)
+            for ((assigned, offsets) in allWaitingOffsets) {
+                assigned.completeOffsets(offsets)
             }
-            try {
-                commitOffsetSync(latestOffsets)
-                for ((assigned, offsets) in allWaitingOffsets) {
-                    assigned.completeOffsets(offsets)
-                }
-            } catch (ex: Throwable) {
-                ex.rethrowIfFatal()
-                logger.warn("Error flushing offsets sync. | latest offsets: {}", latestOffsets, ex)
-                for ((assigned, offsets) in allWaitingOffsets) {
-                    assigned.completeOffsets(offsets, ex)
-                }
-                throw ex
+        } catch (ex: Throwable) {
+            ex.rethrowIfFatal()
+            logger.warn("Error flushing offsets sync. | latest offsets: {}", latestOffsets.toLogString(), ex)
+            for ((assigned, offsets) in allWaitingOffsets) {
+                assigned.completeOffsets(offsets, ex)
             }
+            throw ex
         }
     }
 
@@ -123,39 +122,37 @@ internal class OffsetManager<TKey, TValue>(
         topicPartitions: Collection<TopicPartition> = emptyList(),
         fireAndForget: Boolean = false
     ) {
-        lock.write {
-            val allWaitingOffsets = getReadyOffsets(topicPartitions)
-            if (allWaitingOffsets.isEmpty()) {
-                return
-            }
+        val allWaitingOffsets = getReadyOffsets(topicPartitions)
+        if (allWaitingOffsets.isEmpty()) {
+            return
+        }
 
-            val latestOffsets = getLatest(allWaitingOffsets)
-            try {
-                suspendCoroutine { cont ->
-                    var resumed = false
-                    try {
-                        kafkaConsumer.commitAsync(latestOffsets, KeepOrderAsyncCommit(latestOffsets, cont, fireAndForget))
-                    } catch (ex: Throwable) {
-                        cont.resumeWithException(ex)
-                        resumed = true
-                    } finally {
-                        if (fireAndForget && !resumed) {
-                            cont.resume(Unit)
-                        }
+        val latestOffsets = getLatest(allWaitingOffsets)
+        try {
+            suspendCoroutine { cont ->
+                var resumed = false
+                try {
+                    kafkaConsumer.commitAsync(latestOffsets, KeepOrderAsyncCommit(latestOffsets, cont, fireAndForget))
+                } catch (ex: Throwable) {
+                    cont.resumeWithException(ex)
+                    resumed = true
+                } finally {
+                    if (fireAndForget && !resumed) {
+                        cont.resume(Unit)
                     }
                 }
-
-                for ((assigned, offsets) in allWaitingOffsets) {
-                    assigned.completeOffsets(offsets)
-                }
-            } catch (ex: Throwable) {
-                ex.rethrowIfFatalOrCancelled()
-                logger.warn("Error flushing offsets async. | latest offsets: {}", latestOffsets, ex)
-                for ((assigned, offsets) in allWaitingOffsets) {
-                    assigned.completeOffsets(offsets, ex)
-                }
-                throw ex
             }
+
+            for ((assigned, offsets) in allWaitingOffsets) {
+                assigned.completeOffsets(offsets)
+            }
+        } catch (ex: Throwable) {
+            ex.rethrowIfFatalOrCancelled()
+            logger.warn("Error flushing offsets async. | latest offsets: {}", latestOffsets.toLogString(), ex)
+            for ((assigned, offsets) in allWaitingOffsets) {
+                assigned.completeOffsets(offsets, ex)
+            }
+            throw ex
         }
     }
 
@@ -173,7 +170,7 @@ internal class OffsetManager<TKey, TValue>(
             kafkaConsumer.commitSync(offsets)
         }
         if (logger.isDebugEnabled) {
-            logger.debug("Offset committed (sync). | offsets: {}", offsets)
+            logger.debug("Offset committed (sync). | offsets: {}", offsets.toLogString())
         }
         eventPublisher.publish(Events.OffsetsCommitted(offsets, true, quafkaConsumerOptions.toDetail()))
     }
@@ -272,7 +269,7 @@ internal class OffsetManager<TKey, TValue>(
                 }
             } else {
                 if (logger.isDebugEnabled) {
-                    logger.debug("Offset committed (async). | offsets: {}", offsets)
+                    logger.debug("Offset committed (async). | offsets: {}", offsets.toLogString())
                 }
                 eventPublisher.publish(Events.OffsetsCommitted(offsets, false, quafkaConsumerOptions.toDetail()))
                 if (!fireAndForget) {

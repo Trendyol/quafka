@@ -5,7 +5,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.internals.*
 import org.apache.kafka.common.record.TimestampType
 import java.time.Instant

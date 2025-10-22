@@ -1,7 +1,7 @@
 package com.trendyol.quafka.extensions.serialization.json
 
 import com.fasterxml.jackson.core.JsonParseException
-import com.trendyol.quafka.consumer.IncomingMessage
+import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.extensions.Defaults.objectMapper
 import com.trendyol.quafka.extensions.serialization.DeserializationResult
 import com.trendyol.quafka.extensions.serialization.json.typeResolvers.TypeResolver
@@ -9,8 +9,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.mockk.*
-import org.apache.kafka.common.TopicPartition
-import java.lang.IllegalArgumentException
 
 private data class DummyObject2(
     val id: String
@@ -82,15 +80,13 @@ class StringJsonMessageSerdeTests :
             val incomingMessage = mockk<IncomingMessage<String?, String?>>(relaxed = true)
             val exception = Exception("parsing error")
             every { incomingMessage.key } throws exception
-            every { incomingMessage.offset } returns 0
-            every { incomingMessage.topicPartition } returns TopicPartition("topic1", 1)
+            every { incomingMessage.topicPartitionOffset } returns TopicPartitionOffset("topic1", 1, 0)
 
             // Act
             val result = serde.deserializeKey(incomingMessage) as DeserializationResult.Error
 
             // Assert
-            result.topicPartition shouldBe TopicPartition("topic1", 1)
-            result.offset shouldBe 0
+            result.topicPartitionOffset shouldBe TopicPartitionOffset("topic1", 1, 0)
             result.message shouldBe "error occurred deserializing key"
             result.cause shouldBe exception
         }
@@ -138,16 +134,14 @@ class StringJsonMessageSerdeTests :
             // Arrange
             val incomingMessage = mockk<IncomingMessage<String?, String?>>(relaxed = true)
             every { incomingMessage.value } returns "invalid-json"
-            every { incomingMessage.offset } returns 0
-            every { incomingMessage.topicPartition } returns TopicPartition("topic1", 1)
+            every { incomingMessage.topicPartitionOffset } returns TopicPartitionOffset("topic1", 1, 0)
             every { typeResolver.resolve(any(), any()) } returns DummyObject2::class.java
 
             // Act
             val result = serde.deserializeValue(incomingMessage) as DeserializationResult.Error
 
             // Assert
-            result.topicPartition shouldBe TopicPartition("topic1", 1)
-            result.offset shouldBe 0
+            result.topicPartitionOffset shouldBe TopicPartitionOffset("topic1", 1, 0)
             result.message shouldBe "error occurred deserializing value as json"
             result.cause!!::class shouldBe JsonParseException::class
         }
@@ -158,8 +152,7 @@ class StringJsonMessageSerdeTests :
             val obj = DummyObject2("test-id")
             val serialized = objectMapper.writeValueAsString(obj)
             every { incomingMessage.value } returns serialized
-            every { incomingMessage.offset } returns 0
-            every { incomingMessage.topicPartition } returns TopicPartition("topic1", 1)
+            every { incomingMessage.topicPartitionOffset } returns TopicPartitionOffset("topic1", 1, 0)
             val typeException = Exception("type error")
             every { typeResolver.resolve(any(), any()) } throws typeException
 
@@ -167,8 +160,7 @@ class StringJsonMessageSerdeTests :
             val result = serde.deserializeValue(incomingMessage) as DeserializationResult.Error
 
             // Assert
-            result.topicPartition shouldBe TopicPartition("topic1", 1)
-            result.offset shouldBe 0
+            result.topicPartitionOffset shouldBe TopicPartitionOffset("topic1", 1, 0)
             result.message shouldBe "An error occurred when resolving type"
             result.cause shouldBe typeException
         }
@@ -179,16 +171,14 @@ class StringJsonMessageSerdeTests :
             val obj = DummyObject2("test-id")
             val serialized = objectMapper.writeValueAsString(obj)
             every { incomingMessage.value } returns serialized
-            every { incomingMessage.offset } returns 0
-            every { incomingMessage.topicPartition } returns TopicPartition("topic1", 1)
+            every { incomingMessage.topicPartitionOffset } returns TopicPartitionOffset("topic1", 1, 0)
             every { typeResolver.resolve(any(), any()) } returns null
 
             // Act
             val result = serde.deserializeValue(incomingMessage) as DeserializationResult.Error
 
             // Assert
-            result.topicPartition shouldBe TopicPartition("topic1", 1)
-            result.offset shouldBe 0
+            result.topicPartitionOffset shouldBe TopicPartitionOffset("topic1", 1, 0)
             result.message shouldBe "Type not resolved!!"
             result.cause shouldBe null
         }
@@ -199,16 +189,14 @@ class StringJsonMessageSerdeTests :
             val obj = DummyObject2("test-id")
             val serialized = objectMapper.writeValueAsString(obj)
             every { incomingMessage.value } returns serialized
-            every { incomingMessage.offset } returns 0
-            every { incomingMessage.topicPartition } returns TopicPartition("topic1", 1)
+            every { incomingMessage.topicPartitionOffset } returns TopicPartitionOffset("topic1", 1, 0)
             every { typeResolver.resolve(any(), any()) } returns List::class.java
 
             // Act
             val result = serde.deserializeValue(incomingMessage) as DeserializationResult.Error
 
             // Assert
-            result.topicPartition shouldBe TopicPartition("topic1", 1)
-            result.offset shouldBe 0
+            result.topicPartitionOffset shouldBe TopicPartitionOffset("topic1", 1, 0)
             result.message shouldStartWith "error occurred binding message to object"
             result.cause!!::class shouldBe IllegalArgumentException::class
         }

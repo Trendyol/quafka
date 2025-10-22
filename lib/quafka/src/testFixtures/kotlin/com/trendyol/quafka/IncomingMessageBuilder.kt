@@ -6,7 +6,6 @@ import com.trendyol.quafka.consumer.*
 import io.mockk.*
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.record.TimestampType
 import java.util.Optional

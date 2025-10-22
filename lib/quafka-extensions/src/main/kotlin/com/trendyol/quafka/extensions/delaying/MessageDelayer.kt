@@ -7,7 +7,6 @@ import com.trendyol.quafka.common.HeaderParsers.asString
 import com.trendyol.quafka.common.HeaderParsers.key
 import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.extensions.common.toEnum
-import com.trendyol.quafka.extensions.delaying.DelayHeaders.withDelay
 import com.trendyol.quafka.extensions.delaying.DelayStrategy.*
 import com.trendyol.quafka.logging.*
 import com.trendyol.quafka.producer.OutgoingMessage
@@ -155,13 +154,15 @@ open class MessageDelayer(
         consumerContext: ConsumerContext,
         duration: Duration
     ) {
-        logger
-            .atTrace()
-            .enrichWithConsumerContext(consumerContext)
-            .log(
-                "message will be delayed ${duration.inWholeMilliseconds} ms | {}",
-                message.toString(Level.TRACE)
-            )
+        if (logger.isTraceEnabled) {
+            logger
+                .atTrace()
+                .enrichWithConsumerContext(consumerContext)
+                .log(
+                    "message will be delayed ${duration.inWholeMilliseconds} ms | {}",
+                    message.toString(Level.TRACE)
+                )
+        }
         delay(duration)
     }
 

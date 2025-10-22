@@ -46,7 +46,7 @@ class DeserializationMiddleware<TEnvelope, TKey, TValue>(
         is DeserializationResult.Error -> throw deserializationResult.toException()
         is DeserializationResult.Null -> if (throwExceptionIfKeyIsNull) {
             throw deserializationResult
-                .toError(envelope.message.topicPartition, envelope.message.offset, "deserialized key cannot be null")
+                .toError(envelope.message.topicPartitionOffset, "deserialized key cannot be null")
                 .toException()
         } else {
             null
@@ -63,7 +63,7 @@ class DeserializationMiddleware<TEnvelope, TKey, TValue>(
         is DeserializationResult.Error -> throw deserializationResult.toException()
         is DeserializationResult.Null -> if (throwExceptionIfValueIsNull) {
             throw deserializationResult
-                .toError(envelope.message.topicPartition, envelope.message.offset, "deserialized value cannot be null")
+                .toError(envelope.message.topicPartitionOffset, "deserialized value cannot be null")
                 .toException()
         } else {
             null

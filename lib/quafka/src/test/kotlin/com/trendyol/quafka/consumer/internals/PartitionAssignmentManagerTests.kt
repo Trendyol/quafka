@@ -1,13 +1,13 @@
 package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.IncomingMessageBuilder
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.TopicPartitionOffset
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.*
 import io.mockk.*
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.Logger
 
 class PartitionAssignmentManagerTests :

@@ -3,7 +3,6 @@ package com.trendyol.quafka.consumer
 import com.trendyol.quafka.common.QuafkaHeader
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.record.TimestampType
 import org.slf4j.event.Level
@@ -38,11 +37,11 @@ class IncomingMessage<TKey, TValue> private constructor(
     private val incomingMessageStringFormatter: IncomingMessageStringFormatter,
     val groupId: String,
     val clientId: String,
-    private var acknowledgment: Acknowledgment
+    private var acknowledgment: Acknowledgment,
+    val consumedAt: Instant
 ) {
     val topic: String = consumerRecord.topic()
     val partition = consumerRecord.partition()
-    val topicPartition = TopicPartition(this.topic, this.partition)
     val offset = consumerRecord.offset()
     val timestamp = consumerRecord.timestamp()
     val timestampType: TimestampType = consumerRecord.timestampType()
@@ -54,6 +53,14 @@ class IncomingMessage<TKey, TValue> private constructor(
     val leaderEpoch = consumerRecord.leaderEpoch().getOrNull()
     var acknowledged: Boolean = false
         private set
+    val topicPartitionOffset: TopicPartitionOffset
+        get() {
+            return TopicPartitionOffset(this.topic, this.partition, this.offset)
+        }
+    val topicPartition: TopicPartition
+        get() {
+            return TopicPartition(this.topic, this.partition)
+        }
 
     /**
      * Overrides the current acknowledgment with a new acknowledgment implementation.
@@ -180,13 +187,15 @@ class IncomingMessage<TKey, TValue> private constructor(
             incomingMessageStringFormatter: IncomingMessageStringFormatter,
             groupId: String,
             clientId: String,
-            acknowledgment: Acknowledgment = DefaultAcknowledgment
+            acknowledgment: Acknowledgment = DefaultAcknowledgment,
+            consumedAt: Instant = Instant.now()
         ): IncomingMessage<TKey, TValue> = IncomingMessage(
             consumerRecord,
             incomingMessageStringFormatter,
             groupId,
             clientId,
-            acknowledgment
+            acknowledgment,
+            consumedAt
         )
     }
 }

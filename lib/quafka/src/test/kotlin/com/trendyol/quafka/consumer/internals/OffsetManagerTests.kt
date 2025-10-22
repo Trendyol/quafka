@@ -1,6 +1,7 @@
 package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.*
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.CommitOptions
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.*
@@ -9,7 +10,6 @@ import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import org.apache.kafka.clients.consumer.*
-import org.apache.kafka.common.TopicPartition
 import org.slf4j.*
 
 @Suppress("UNCHECKED_CAST")

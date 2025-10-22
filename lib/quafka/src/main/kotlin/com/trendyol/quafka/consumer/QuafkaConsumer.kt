@@ -93,9 +93,8 @@ class QuafkaConsumer<TKey, TValue> internal constructor(
         newScope.launch {
             eventPublisher.subscribe<Events.WorkerFailed> {
                 logger.error(
-                    "Worker failed, consumer will be stopped. | topic: {} | partition: {}",
-                    it.topicPartition.topic(),
-                    it.topicPartition.partition(),
+                    "Worker failed, consumer will be stopped. | {}",
+                    it.topicPartition.toLogString(),
                     it.exception
                 )
                 launch {

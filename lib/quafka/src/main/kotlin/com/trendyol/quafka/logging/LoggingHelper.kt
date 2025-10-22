@@ -36,8 +36,8 @@ fun ConsumerContext.createConsumerContextKeyValuePairs(
 ): MutableMap<String, Any> = mutableMapOf<String, Any>(
     LogParameters.CLIENT_ID to this.consumerOptions.getClientId(),
     LogParameters.GROUP_ID to this.consumerOptions.getGroupId(),
-    LogParameters.TOPIC to topicPartition.topic(),
-    LogParameters.PARTITION to topicPartition.partition()
+    LogParameters.TOPIC to topicPartition.topic,
+    LogParameters.PARTITION to topicPartition.partition
 ).apply(configure)
 
 object LogParameters {

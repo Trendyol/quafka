@@ -14,10 +14,6 @@ plugins {
 group = "com.trendyol"
 version = CI.version(project)
 
-allprojects {
-    extra.set("dokka.outputDirectory", rootDir.resolve("docs"))
-}
-
 kover {
     reports {
         filters {
@@ -29,6 +25,7 @@ kover {
         }
     }
 }
+
 val koverProjects = subprojects.of("lib")
 dependencies {
     koverProjects.forEach {
@@ -37,6 +34,7 @@ dependencies {
 }
 
 subprojects.of("lib", "examples") {
+    val p = this
     apply {
         plugin("kotlin")
         plugin(
@@ -124,6 +122,7 @@ val publishedProjects = listOf(
 )
 
 subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
+    val p = this
     println("publishing $name")
     apply {
         plugin("java")
@@ -146,6 +145,7 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
             }
         }
     }
+
     mavenPublishing {
         publishToMavenCentral()
         coordinates(groupId = rootProject.group.toString(), artifactId = project.name, version = rootProject.version.toString())

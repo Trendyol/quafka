@@ -11,7 +11,7 @@ slf4j = "2.0.17"
 kafka = "3.9.1"
 logback-classic= "1.5.18"
 spotless = "7.2.1"
-dokka = "2.0.0"
+dokka = "2.1.0"
 kover = "0.9.1"
 kotest = "5.9.1"
 embedded-kafka = "3.9.1"
@@ -77,3 +77,4 @@ kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 testLogger = { id = "com.adarshr.test-logger", version = "4.0.0" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 maven-publish = { id = "com.vanniktech.maven.publish", version = "0.34.0" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }

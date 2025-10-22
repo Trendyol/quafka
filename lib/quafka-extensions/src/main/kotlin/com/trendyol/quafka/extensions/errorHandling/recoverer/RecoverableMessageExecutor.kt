@@ -81,13 +81,15 @@ class RecoverableMessageExecutor<TKey, TValue>(
     ) {
         val identifierInHeader = incomingMessage.headers.getRetryIdentifier()
         if (identifierInHeader == identifier) {
-            logger
-                .atDebug()
-                .enrichWithConsumerContext(consumerContext)
-                .log(
-                    "Skipping in-memory retry for identifier '$identifier', already in non-blocking retry loop. | message = {} ",
-                    incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                )
+            if (logger.isDebugEnabled) {
+                logger
+                    .atDebug()
+                    .enrichWithConsumerContext(consumerContext)
+                    .log(
+                        "Skipping in-memory retry for identifier '$identifier', already in non-blocking retry loop. | message = {} ",
+                        incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
+                    )
+            }
             throw exception
         }
 

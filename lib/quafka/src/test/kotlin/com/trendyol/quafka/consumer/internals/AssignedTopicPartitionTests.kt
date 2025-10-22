@@ -2,13 +2,13 @@ package com.trendyol.quafka.consumer.internals
 
 import com.trendyol.quafka.*
 import com.trendyol.quafka.common.InvalidConfigurationException
+import com.trendyol.quafka.consumer.TopicPartition
 import com.trendyol.quafka.consumer.configuration.*
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.*
 import io.mockk.*
 import kotlinx.coroutines.*
-import org.apache.kafka.common.TopicPartition
 import kotlin.time.Duration.Companion.seconds
 
 class AssignedTopicPartitionTests :
