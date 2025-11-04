@@ -1,6 +1,4 @@
 package com.trendyol.quafka.common
-import kotlinx.coroutines.ensureActive
-import kotlin.coroutines.*
 import kotlin.coroutines.cancellation.CancellationException
 
 fun Throwable.isFatal(): Boolean =
@@ -9,15 +7,6 @@ fun Throwable.isFatal(): Boolean =
         else -> false
     }
 
-suspend fun Throwable.rethrowIfFatalOrCancelled(context: CoroutineContext? = null) {
-    (context ?: coroutineContext).ensureActive()
-    if (isFatal()) {
-        throw this
-    }
-}
-
-fun Throwable.rethrowIfFatal() {
-    if (this.isFatal()) {
-        throw this
-    }
+fun Throwable.rethrowIfFatalOrCancelled() {
+    if (this.isFatal()) throw this
 }

@@ -68,7 +68,7 @@ internal class PollingConsumer<TKey, TValue>(
                 }
             }
         } catch (exception: Throwable) {
-            exception.rethrowIfFatal()
+            exception.rethrowIfFatalOrCancelled()
             logger.warn("An error occurred when starting consumer", exception)
             throw exception
         }

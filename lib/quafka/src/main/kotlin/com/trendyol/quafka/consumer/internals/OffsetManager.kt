@@ -1,6 +1,5 @@
 package com.trendyol.quafka.consumer.internals
 
-import com.trendyol.quafka.common.rethrowIfFatal
 import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.Events
 import com.trendyol.quafka.consumer.Events.toDetail
@@ -90,7 +89,7 @@ internal class OffsetManager<TKey, TValue>(
                 assigned.completeOffsets(offsets)
             }
         } catch (ex: Throwable) {
-            ex.rethrowIfFatal()
+            ex.rethrowIfFatalOrCancelled()
             logger.warn("Error flushing offsets sync. | latest offsets: {}", latestOffsets.toLogString(), ex)
             for ((assigned, offsets) in allWaitingOffsets) {
                 assigned.completeOffsets(offsets, ex)

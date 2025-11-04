@@ -1,5 +1,6 @@
 package com.trendyol.quafka.consumer.messageHandlers
 
+import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.consumer.errorHandlers.FallbackErrorHandler
 import com.trendyol.quafka.logging.*
@@ -61,7 +62,7 @@ class BatchMessageHandlingStrategy<TKey, TValue>(
             try {
                 messageHandler.invoke(incomingMessages, consumerContext)
             } catch (exception: Throwable) {
-                consumerContext.coroutineContext.ensureActive()
+                exception.rethrowIfFatalOrCancelled()
                 logger
                     .atWarn()
                     .enrichWithConsumerContext(consumerContext)

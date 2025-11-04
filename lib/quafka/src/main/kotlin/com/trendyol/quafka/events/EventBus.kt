@@ -52,7 +52,7 @@ suspend inline fun <reified T : QuafkaEvent> EventBus.subscribe(crossinline call
     events
         .filterIsInstance<T>()
         .collect { event ->
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             callback(event)
         }
 }

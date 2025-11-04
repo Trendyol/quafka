@@ -1,9 +1,9 @@
 package com.trendyol.quafka.consumer.messageHandlers
 
+import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.consumer.errorHandlers.*
 import com.trendyol.quafka.logging.*
-import kotlinx.coroutines.ensureActive
 import org.slf4j.Logger
 import org.slf4j.event.Level
 
@@ -31,7 +31,7 @@ class SingleMessageHandlingStrategy<TKey, TValue>(
             try {
                 messageHandler.invoke(incomingMessage, consumerContext)
             } catch (exception: Throwable) {
-                consumerContext.coroutineContext.ensureActive()
+                exception.rethrowIfFatalOrCancelled()
                 logger
                     .atWarn()
                     .enrichWithConsumerContext(consumerContext)
