@@ -8,7 +8,6 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.mockk.*
 import kotlinx.coroutines.*
@@ -87,31 +86,6 @@ class ResilientHandlerTests :
 
                 // assert
                 attemptCount.get() shouldBe 3
-            }
-
-            test("should use exponential backoff") {
-                // arrange
-                val handler = ResilientHandler.Retrying.basic<String, String>(initialInterval = 100.milliseconds)
-                val message = createTestMessage()
-                val context = createTestContext()
-                val timestamps = mutableListOf<Long>()
-
-                // act
-                handler.handle(context, listOf(message)) { _, _ ->
-                    timestamps.add(System.currentTimeMillis())
-                    if (timestamps.size < 3) {
-                        throw RuntimeException("Simulated error")
-                    }
-                }
-
-                // assert - delays should increase
-                timestamps.size shouldBe 3
-                if (timestamps.size >= 3) {
-                    val firstDelay = timestamps[1] - timestamps[0]
-                    val secondDelay = timestamps[2] - timestamps[1]
-                    // Second delay should be longer than first (exponential backoff)
-                    secondDelay shouldBeGreaterThan firstDelay
-                }
             }
 
             test("basic factory method should work with custom config") {

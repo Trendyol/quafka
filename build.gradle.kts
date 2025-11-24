@@ -169,7 +169,7 @@ publishedProjects.forEvery {
     mavenPublishing {
         configure(
             KotlinJvm(
-                javadocJar = JavadocJar.Dokka("dokkaHtmlJar"),
+                javadocJar = JavadocJar.Dokka("dokkaGenerateJavadoc"),
                 sourcesJar = true
             )
         )
@@ -217,10 +217,4 @@ dokka {
             project.layout.projectDirectory.dir("docs/fundamentals.md")
         )
     }
-}
-
-val dokkaHtmlJar by tasks.registering(Jar::class) {
-    description = "A HTML Documentation JAR containing Dokka HTML"
-    from(tasks.dokkaGeneratePublicationHtml.flatMap { it.outputDirectory })
-    archiveClassifier.set("html-doc")
 }
