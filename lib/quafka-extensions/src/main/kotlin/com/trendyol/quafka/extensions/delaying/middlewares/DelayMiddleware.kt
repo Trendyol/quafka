@@ -5,9 +5,8 @@ import com.trendyol.quafka.extensions.consumer.single.pipelines.SingleMessageBas
 import com.trendyol.quafka.extensions.consumer.single.pipelines.SingleMessageEnvelope
 import com.trendyol.quafka.extensions.delaying.MessageDelayer
 
-class DelayMiddleware<TEnvelope, TKey, TValue>(
-    private val messageDelayer: MessageDelayer
-) : SingleMessageBaseMiddleware<TEnvelope, TKey, TValue>() where TEnvelope : SingleMessageEnvelope<TKey, TValue> {
+class DelayMiddleware<TEnvelope, TKey, TValue>(private val messageDelayer: MessageDelayer) :
+    SingleMessageBaseMiddleware<TEnvelope, TKey, TValue>() where TEnvelope : SingleMessageEnvelope<TKey, TValue> {
     override suspend fun execute(
         envelope: TEnvelope,
         next: MiddlewareFn<TEnvelope>

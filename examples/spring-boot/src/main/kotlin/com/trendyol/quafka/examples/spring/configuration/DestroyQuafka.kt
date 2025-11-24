@@ -6,10 +6,7 @@ import jakarta.annotation.PreDestroy
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-class DestroyQuafka(
-    private val consumer: QuafkaConsumer<*, *>,
-    private val producer: QuafkaProducer<*, *>
-) {
+class DestroyQuafka(private val consumer: QuafkaConsumer<*, *>, private val producer: QuafkaProducer<*, *>) {
     @PreDestroy
     fun closeConsumer() {
         consumer.stop()

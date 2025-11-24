@@ -30,6 +30,10 @@ fun Collection<Project>.of(
     action: Action<Project>
 ): Unit = this.filter { parentProjects.contains(it.parent?.name) && filter(it) }.forEach { action(it) }
 
+fun Collection<Project>.forEvery(
+    action: Action<Project>
+): Unit = this.forEach { action(it) }
+
 val runningOnCI: Boolean
     get() = System.getenv("CI") != null ||
         System.getenv("GITHUB_ACTIONS") != null ||

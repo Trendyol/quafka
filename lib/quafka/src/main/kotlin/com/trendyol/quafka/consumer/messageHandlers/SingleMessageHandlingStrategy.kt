@@ -2,7 +2,6 @@ package com.trendyol.quafka.consumer.messageHandlers
 
 import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.*
-import com.trendyol.quafka.consumer.errorHandlers.*
 import com.trendyol.quafka.logging.*
 import org.slf4j.Logger
 import org.slf4j.event.Level
@@ -10,7 +9,7 @@ import org.slf4j.event.Level
 class SingleMessageHandlingStrategy<TKey, TValue>(
     private val messageHandler: SingleMessageHandler<TKey, TValue>,
     private val autoAck: Boolean,
-    private val fallbackErrorHandler: FallbackErrorHandler<TKey, TValue> = FallbackErrorHandler.RetryOnFailure()
+    private val resilientHandler: ResilientHandler<TKey, TValue>
 ) : MessageHandlingStrategy<TKey, TValue>,
     SingleMessageHandler<TKey, TValue> {
     private val logger: Logger = LoggerHelper.createLogger(clazz = this.javaClass)
@@ -24,7 +23,7 @@ class SingleMessageHandlingStrategy<TKey, TValue>(
      * @param incomingMessage The message to process.
      */
     override suspend fun invoke(incomingMessage: IncomingMessage<TKey, TValue>, consumerContext: ConsumerContext) {
-        fallbackErrorHandler.handle(
+        resilientHandler.handle(
             consumerContext,
             listOf(incomingMessage)
         ) { _, _ ->
@@ -42,10 +41,9 @@ class SingleMessageHandlingStrategy<TKey, TValue>(
                     )
                 throw exception
             }
-
-            if (autoAck) {
-                incomingMessage.ack()
-            }
+        }
+        if (autoAck) {
+            incomingMessage.ack()
         }
     }
 }

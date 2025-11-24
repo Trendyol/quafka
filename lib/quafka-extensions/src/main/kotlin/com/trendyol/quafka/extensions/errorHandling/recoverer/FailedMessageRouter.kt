@@ -17,16 +17,14 @@ import kotlin.time.Duration
  * The primary purpose of this class is to intercept failures during message processing, prevent message loss,
  * and apply configured recovery strategies such as retry, delayed retry, and dead-lettering.
  *
- * Instead of handling the error in-place, it enriches the message with relevant metadata (e.g., error details,
- * attempt counts) and forwards it to other Kafka topics. This approach enhances system resilience and
- * improves the traceability of failures.
- *
  * @param TKey The type of the Kafka message key.
  * @param TValue The type of the Kafka message value.
- * @property exceptionDetailsProvider A function that provides enriched error details from the thrown exception.
- * @property topicResolver A component that finds the relevant topic configuration for an incoming message.
- * @property danglingTopic A fallback topic for failed messages from unconfigured source topics.
- * @property quafkaProducer The Kafka producer client used to send the message to its next destination (e.g., retry or error topic).
+ * @property exceptionDetailsProvider Provides enriched error details from thrown exceptions
+ * @property topicResolver Finds the relevant topic configuration for messages
+ * @property danglingTopic Fallback topic for messages from unconfigured topics
+ * @property quafkaProducer Kafka producer for sending messages to destinations
+ * @property policyProvider Determines the retry policy based on message and exception
+ * @property outgoingMessageModifier Allows modification of outgoing messages before sending
  */
 class FailedMessageRouter<TKey, TValue>(
     private val exceptionDetailsProvider: ExceptionDetailsProvider,
@@ -45,45 +43,53 @@ class FailedMessageRouter<TKey, TValue>(
     ) {
         exception.rethrowIfFatalOrCancelled()
 
-        val exceptionReport = exceptionDetailsProvider(exception)
+        val exceptionDetails = exceptionDetailsProvider(exception)
         logger
             .atWarn()
             .enrichWithConsumerContext(consumerContext)
             .setCause(exception)
             .log(
                 "Error occurred when processing message, error will be handled... | exception detail: {} | {}",
-                exceptionReport.detail,
+                exceptionDetails.detail,
                 incomingMessage.toString(logLevel = Level.WARN, addValue = false, addHeaders = true)
             )
+
         when (val resolvedTopic = topicResolver.resolve(incomingMessage)) {
             is TopicResolver.Topic.ResolvedTopic -> handleKnownTopic(
                 resolvedTopic.configuration,
                 incomingMessage,
                 consumerContext,
-                exceptionReport
+                exceptionDetails
             )
 
             TopicResolver.Topic.UnknownTopic -> forwardToDanglingTopic(
                 incomingMessage,
                 consumerContext,
-                exceptionReport
+                exceptionDetails
             )
         }
     }
 
     private suspend fun handleKnownTopic(
-        topicConfiguration: TopicConfiguration,
+        topicConfiguration: TopicConfiguration<*>,
         incomingMessage: IncomingMessage<TKey, TValue>,
         consumerContext: ConsumerContext,
         exceptionDetails: ExceptionDetails
     ) {
-        if (topicConfiguration.retry == TopicConfiguration.TopicRetryStrategy.NoneStrategy) {
+        if (topicConfiguration.retry == TopicRetryStrategy.NoneStrategy) {
             forwardToErrorTopic(topicConfiguration, incomingMessage, consumerContext, exceptionDetails)
             return
         }
 
-        when (val policy = policyProvider(incomingMessage, consumerContext, exceptionDetails)) {
-            is RetryPolicy.FullRetry -> handleRetry(
+        when (val policy = policyProvider(incomingMessage, consumerContext, exceptionDetails, topicConfiguration)) {
+            is RetryPolicy.InMemory, RetryPolicy.NoRetry -> forwardToErrorTopic(
+                topicConfiguration,
+                incomingMessage,
+                consumerContext,
+                exceptionDetails
+            )
+
+            is RetryPolicy.FullRetry -> handleRetryPolicy(
                 topicConfiguration,
                 incomingMessage,
                 consumerContext,
@@ -92,16 +98,7 @@ class FailedMessageRouter<TKey, TValue>(
                 policy.identifier
             )
 
-            is RetryPolicy.InMemoryOnly, RetryPolicy.NoRetry -> {
-                forwardToErrorTopic(
-                    topicConfiguration,
-                    incomingMessage,
-                    consumerContext,
-                    exceptionDetails
-                )
-            }
-
-            is RetryPolicy.NonBlockingOnly -> handleRetry(
+            is RetryPolicy.NonBlocking -> handleRetryPolicy(
                 topicConfiguration,
                 incomingMessage,
                 consumerContext,
@@ -112,40 +109,196 @@ class FailedMessageRouter<TKey, TValue>(
         }
     }
 
-    private suspend fun handleRetry(
-        topicConfiguration: TopicConfiguration,
+    private suspend fun handleRetryPolicy(
+        topicConfiguration: TopicConfiguration<*>,
         incomingMessage: IncomingMessage<TKey, TValue>,
         consumerContext: ConsumerContext,
         exceptionDetails: ExceptionDetails,
         nonBlockingRetryConfig: NonBlockingRetryConfig,
-        policyIdentifier: String
-    ) = when (
-        val action =
-            determineRetry(
-                incomingMessage,
-                consumerContext,
-                topicConfiguration,
-                nonBlockingRetryConfig,
-                policyIdentifier,
-                exceptionDetails
-            )
+        policyIdentifier: PolicyIdentifier
     ) {
-        RetryOutcome.Error -> forwardToErrorTopic(
-            topicConfiguration,
+        val retryDecision = determineRetry(
             incomingMessage,
             consumerContext,
+            topicConfiguration,
+            nonBlockingRetryConfig,
+            policyIdentifier,
             exceptionDetails
         )
 
-        is RetryOutcome.Retry ->
-            forwardToRetryTopic(consumerContext, exceptionDetails, action, incomingMessage)
+        when (retryDecision) {
+            RetryOutcome.Error -> forwardToErrorTopic(
+                topicConfiguration,
+                incomingMessage,
+                consumerContext,
+                exceptionDetails
+            )
 
-        is RetryOutcome.Forward -> forwardToDelayTopic(
-            consumerContext,
-            exceptionDetails,
-            action,
-            incomingMessage
+            is RetryOutcome.Retry -> forwardToRetryTopic(
+                consumerContext,
+                exceptionDetails,
+                retryDecision,
+                incomingMessage
+            )
+
+            is RetryOutcome.Forward -> forwardToDelayTopic(
+                consumerContext,
+                exceptionDetails,
+                retryDecision,
+                incomingMessage
+            )
+        }
+    }
+
+    private fun determineRetry(
+        incomingMessage: IncomingMessage<*, *>,
+        consumerContext: ConsumerContext,
+        config: TopicConfiguration<*>,
+        policy: NonBlockingRetryConfig,
+        policyIdentifier: PolicyIdentifier,
+        exceptionDetails: ExceptionDetails
+    ): RetryOutcome {
+        val attempts = calculateRetryAttempts(incomingMessage, policyIdentifier)
+        if (attempts.nextAttempt > policy.maxAttempts) {
+            return RetryOutcome.Error
+        }
+        val calculatedDelay = policy.calculateDelay(
+            message = incomingMessage,
+            consumerContext = consumerContext,
+            exceptionDetails = exceptionDetails,
+            attempt = attempts.nextOverall
         )
+        return when (config.retry) {
+            TopicRetryStrategy.NoneStrategy -> RetryOutcome.Error
+
+            is TopicRetryStrategy.SingleTopicRetry ->
+                applySingleTopicStrategy(config.retry, calculatedDelay, attempts, policyIdentifier)
+
+            is TopicRetryStrategy.ExponentialBackoffMultiTopicRetry ->
+                applyMultiTopicStrategy(config.retry, calculatedDelay, attempts, policyIdentifier, incomingMessage, consumerContext)
+
+            is TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry ->
+                applyBackoffToSingleStrategy(config.retry, calculatedDelay, attempts, policyIdentifier, incomingMessage, consumerContext)
+        }
+    }
+
+    /**
+     * Calculates the current and next retry attempt numbers.
+     * Per-policy attempts reset when the policy identifier changes.
+     */
+    private fun calculateRetryAttempts(
+        incomingMessage: IncomingMessage<*, *>,
+        policyIdentifier: PolicyIdentifier
+    ): RetryAttempts {
+        val currentIdentifier = incomingMessage.headers.getRetryPolicyIdentifier()
+        val currentAttempt = if (policyIdentifier == currentIdentifier) {
+            incomingMessage.headers.getRetryAttemptOrDefault()
+        } else {
+            0 // Reset per-policy counter if policy changed
+        }
+
+        val currentOverall = incomingMessage.headers.getOverallRetryAttemptOrDefault()
+
+        return RetryAttempts(
+            currentAttempt = currentAttempt,
+            nextAttempt = currentAttempt + 1,
+            currentOverall = currentOverall,
+            nextOverall = currentOverall + 1
+        )
+    }
+
+    private fun applySingleTopicStrategy(
+        strategy: TopicRetryStrategy.SingleTopicRetry,
+        delay: Duration,
+        attempts: RetryAttempts,
+        policyIdentifier: PolicyIdentifier
+    ): RetryOutcome {
+        if (attempts.nextOverall > strategy.maxOverallAttempts) {
+            return RetryOutcome.Error
+        }
+
+        return RetryOutcome.Retry(
+            retryTopic = strategy.retryTopic,
+            delay = delay,
+            nextAttempt = attempts.nextAttempt,
+            overallAttempt = attempts.nextOverall,
+            policyIdentifier = policyIdentifier
+        )
+    }
+
+    private fun applyMultiTopicStrategy(
+        strategy: TopicRetryStrategy.ExponentialBackoffMultiTopicRetry,
+        delay: Duration,
+        attempts: RetryAttempts,
+        policyIdentifier: PolicyIdentifier,
+        incomingMessage: IncomingMessage<*, *>,
+        consumerContext: ConsumerContext
+    ): RetryOutcome {
+        if (attempts.nextOverall > strategy.maxOverallAttempts) {
+            return RetryOutcome.Error
+        }
+
+        val bucket = findBucket(consumerContext, attempts, delay, incomingMessage, strategy)
+        return RetryOutcome.Retry(
+            retryTopic = bucket.topic,
+            delay = delay,
+            nextAttempt = attempts.nextAttempt,
+            overallAttempt = attempts.nextOverall,
+            policyIdentifier = policyIdentifier
+        )
+    }
+
+    private fun applyBackoffToSingleStrategy(
+        strategy: TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry,
+        delay: Duration,
+        attempts: RetryAttempts,
+        policyIdentifier: PolicyIdentifier,
+        incomingMessage: IncomingMessage<*, *>,
+        consumerContext: ConsumerContext
+    ): RetryOutcome {
+        if (attempts.nextOverall > strategy.maxOverallAttempts) {
+            return RetryOutcome.Error
+        }
+
+        val bucket = findBucket(consumerContext, attempts, delay, incomingMessage, strategy)
+        return RetryOutcome.Forward(
+            delayTopic = bucket.topic,
+            retryTopic = strategy.retryTopic,
+            delay = delay,
+            nextAttempt = attempts.nextAttempt,
+            overallAttempt = attempts.nextOverall,
+            policyIdentifier = policyIdentifier
+        )
+    }
+
+    private fun findBucket(
+        consumerContext: ConsumerContext,
+        attempts: RetryAttempts,
+        delay: Duration,
+        incomingMessage: IncomingMessage<*, *>,
+        strategy: TopicRetryStrategy.MultiTopicRetry
+    ): TopicRetryStrategy.DelayTopicConfiguration {
+        if (logger.isDebugEnabled) {
+            logger
+                .atDebug()
+                .enrichWithConsumerContext(consumerContext)
+                .log(
+                    "Backoff delay | attempts: $attempts | delay: $delay | message: {} ",
+                    incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
+                )
+        }
+        val bucket = strategy.findBucket(delay)
+        if (bucket.maxDelay < delay) {
+            logger
+                .atWarn()
+                .enrichWithConsumerContext(consumerContext)
+                .log(
+                    "Calculated delay ($delay) exceeds max bucket threshold (${bucket.maxDelay}). " +
+                        "Using max bucket '${bucket.topic}' as fallback. | message = {} ",
+                    incomingMessage.toString(Level.WARN, addValue = false, addHeaders = true)
+                )
+        }
+        return bucket
     }
 
     private suspend fun forwardToDelayTopic(
@@ -175,7 +328,7 @@ class FailedMessageRouter<TKey, TValue>(
             .forwardingTopic(action.retryTopic)
             .addOriginTopicInformation(incomingMessage, now)
             .addPublishedAt(now)
-            .addRetryAttempt(action.nextAttempt, action.overallAttempt, action.retryIdentifier)
+            .addRetryAttempt(action.nextAttempt, action.overallAttempt, action.policyIdentifier)
             .clearDelay()
             .apply {
                 if (action.delay > Duration.ZERO) {
@@ -183,21 +336,14 @@ class FailedMessageRouter<TKey, TValue>(
                 }
             }
 
-        val outgoingMessage = this.outgoingMessageModifier(
-            OutgoingMessage.create(
-                topic = action.delayTopic,
-                partition = null,
-                key = incomingMessage.key,
-                value = incomingMessage.value,
-                headers = headers
-            ),
-            incomingMessage,
-            consumerContext,
-            exceptionDetails
+        val outgoingMessage = createAndSendMessage(
+            topic = action.delayTopic,
+            incomingMessage = incomingMessage,
+            headers = headers,
+            consumerContext = consumerContext,
+            exceptionDetails = exceptionDetails
         )
-        quafkaProducer.send(
-            outgoingMessage
-        )
+
         consumerContext.consumerOptions.eventBus.publish(
             RecovererEvent.DelayMessagePublished(
                 message = incomingMessage,
@@ -206,13 +352,16 @@ class FailedMessageRouter<TKey, TValue>(
                 consumerContext = consumerContext,
                 attempt = action.nextAttempt,
                 overallAttempt = action.overallAttempt,
-                identifier = action.retryIdentifier,
+                policyIdentifier = action.policyIdentifier,
                 delay = action.delay,
                 forwardingTopic = action.retryTopic
             )
         )
     }
 
+    /**
+     * Forwards message directly to a retry topic with optional delay.
+     */
     private suspend fun forwardToRetryTopic(
         consumerContext: ConsumerContext,
         exceptionDetails: ExceptionDetails,
@@ -237,7 +386,7 @@ class FailedMessageRouter<TKey, TValue>(
             .addException(exceptionDetails, now)
             .addOriginTopicInformation(incomingMessage, now)
             .addPublishedAt(now)
-            .addRetryAttempt(action.nextAttempt, action.overallAttempt, action.retryIdentifier)
+            .addRetryAttempt(action.nextAttempt, action.overallAttempt, action.policyIdentifier)
             .clearDelay()
             .apply {
                 if (action.delay > Duration.ZERO) {
@@ -245,21 +394,14 @@ class FailedMessageRouter<TKey, TValue>(
                 }
             }
 
-        val outgoingMessage = outgoingMessageModifier(
-            OutgoingMessage.create(
-                topic = action.retryTopic,
-                partition = null,
-                key = incomingMessage.key,
-                value = incomingMessage.value,
-                headers = headers
-            ),
-            incomingMessage,
-            consumerContext,
-            exceptionDetails
+        val outgoingMessage = createAndSendMessage(
+            topic = action.retryTopic,
+            incomingMessage = incomingMessage,
+            headers = headers,
+            consumerContext = consumerContext,
+            exceptionDetails = exceptionDetails
         )
-        quafkaProducer.send(
-            outgoingMessage
-        )
+
         consumerContext.consumerOptions.eventBus.publish(
             RecovererEvent.RetryMessagePublished(
                 message = incomingMessage,
@@ -268,8 +410,51 @@ class FailedMessageRouter<TKey, TValue>(
                 consumerContext = consumerContext,
                 attempt = action.nextAttempt,
                 overallAttempt = action.overallAttempt,
-                identifier = action.retryIdentifier,
+                policyIdentifier = action.policyIdentifier,
                 delay = action.delay
+            )
+        )
+    }
+
+    private suspend fun forwardToErrorTopic(
+        topicConfiguration: TopicConfiguration<*>,
+        incomingMessage: IncomingMessage<TKey, TValue>,
+        consumerContext: ConsumerContext,
+        exceptionDetails: ExceptionDetails
+    ) {
+        logger
+            .atError()
+            .enrichWithConsumerContext(consumerContext)
+            .setCause(exceptionDetails.exception)
+            .log(
+                "Not retryable error occurred when consuming, forwarding to error topic: {} | exception detail: {} | {} ",
+                topicConfiguration.deadLetterTopic,
+                exceptionDetails.detail,
+                incomingMessage.toString(Level.ERROR, addValue = true, addHeaders = true)
+            )
+
+        val now = consumerContext.consumerOptions.timeProvider.now()
+        val headers = incomingMessage.headers
+            .toMutableList()
+            .addException(exceptionDetails, now)
+            .addOriginTopicInformation(incomingMessage, now)
+            .addPublishedAt(now)
+            .clearDelay()
+
+        val outgoingMessage = createAndSendMessage(
+            topic = topicConfiguration.deadLetterTopic,
+            incomingMessage = incomingMessage,
+            headers = headers,
+            consumerContext = consumerContext,
+            exceptionDetails = exceptionDetails
+        )
+
+        consumerContext.consumerOptions.eventBus.publish(
+            RecovererEvent.ErrorMessagePublished(
+                message = incomingMessage,
+                exceptionDetails = exceptionDetails,
+                outgoingMessage = outgoingMessage,
+                consumerContext = consumerContext
             )
         )
     }
@@ -298,22 +483,14 @@ class FailedMessageRouter<TKey, TValue>(
             .addPublishedAt(now)
             .clearDelay()
 
-        val outgoingMessage = outgoingMessageModifier(
-            OutgoingMessage
-                .create(
-                    topic = danglingTopic,
-                    partition = null,
-                    key = incomingMessage.key,
-                    value = incomingMessage.value,
-                    headers = headers
-                ),
-            incomingMessage,
-            consumerContext,
-            exceptionDetails
+        val outgoingMessage = createAndSendMessage(
+            topic = danglingTopic,
+            incomingMessage = incomingMessage,
+            headers = headers,
+            consumerContext = consumerContext,
+            exceptionDetails = exceptionDetails
         )
-        quafkaProducer.send(
-            outgoingMessage
-        )
+
         consumerContext.consumerOptions.eventBus.publish(
             RecovererEvent.DanglingMessagePublished(
                 message = incomingMessage,
@@ -324,53 +501,28 @@ class FailedMessageRouter<TKey, TValue>(
         )
     }
 
-    private suspend fun forwardToErrorTopic(
-        topicConfiguration: TopicConfiguration,
+    private suspend fun createAndSendMessage(
+        topic: String,
         incomingMessage: IncomingMessage<TKey, TValue>,
+        headers: List<org.apache.kafka.common.header.Header>,
         consumerContext: ConsumerContext,
         exceptionDetails: ExceptionDetails
-    ) {
-        logger
-            .atError()
-            .enrichWithConsumerContext(consumerContext)
-            .setCause(exceptionDetails.exception)
-            .log(
-                "Not retryable error occurred when consuming, forwarding to error topic: {} | exception detail: {} | {} ",
-                topicConfiguration.deadLetterTopic,
-                exceptionDetails.detail,
-                incomingMessage.toString(Level.ERROR, addValue = true, addHeaders = true)
-            )
-
-        val now = consumerContext.consumerOptions.timeProvider.now()
+    ): OutgoingMessage<TKey, TValue> {
         val outgoingMessage = outgoingMessageModifier(
-            OutgoingMessage
-                .create(
-                    topic = topicConfiguration.deadLetterTopic,
-                    partition = null,
-                    key = incomingMessage.key,
-                    value = incomingMessage.value,
-                    headers = incomingMessage.headers
-                        .toMutableList()
-                        .addException(exceptionDetails, now)
-                        .addOriginTopicInformation(incomingMessage, now)
-                        .addPublishedAt(now)
-                        .clearDelay()
-                ),
+            OutgoingMessage.create(
+                topic = topic,
+                partition = null,
+                key = incomingMessage.key,
+                value = incomingMessage.value,
+                headers = headers
+            ),
             incomingMessage,
             consumerContext,
             exceptionDetails
         )
-        quafkaProducer.send(
-            outgoingMessage
-        )
-        consumerContext.consumerOptions.eventBus.publish(
-            RecovererEvent.ErrorMessagePublished(
-                message = incomingMessage,
-                exceptionDetails = exceptionDetails,
-                outgoingMessage = outgoingMessage,
-                consumerContext = consumerContext
-            )
-        )
+
+        quafkaProducer.send(outgoingMessage)
+        return outgoingMessage
     }
 
     private sealed class RetryOutcome {
@@ -381,7 +533,7 @@ class FailedMessageRouter<TKey, TValue>(
             val delay: Duration,
             val nextAttempt: Int,
             val overallAttempt: Int,
-            val retryIdentifier: String
+            val policyIdentifier: PolicyIdentifier
         ) : RetryOutcome()
 
         data class Forward(
@@ -390,130 +542,9 @@ class FailedMessageRouter<TKey, TValue>(
             val delay: Duration,
             val nextAttempt: Int,
             val overallAttempt: Int,
-            val retryIdentifier: String
+            val policyIdentifier: PolicyIdentifier
         ) : RetryOutcome()
     }
 
-    private fun determineRetry(
-        incomingMessage: IncomingMessage<*, *>,
-        consumerContext: ConsumerContext,
-        config: TopicConfiguration,
-        policy: NonBlockingRetryConfig,
-        policyIdentifier: String,
-        exceptionDetails: ExceptionDetails
-    ): RetryOutcome {
-        val currentIdentifier = incomingMessage.headers.getRetryIdentifier()
-        val currentAttempt = if (policyIdentifier == currentIdentifier) {
-            incomingMessage.headers.getRetryAttemptOrDefault()
-        } else {
-            0
-        }
-        val nextAttempt = currentAttempt + 1
-
-        val currentOverall = incomingMessage.headers.getOverallRetryAttemptOrDefault()
-        val nextOverall = currentOverall + 1
-
-        // exceed per-retry limit?
-        if (nextAttempt > policy.maxAttempts) {
-            return RetryOutcome.Error
-        }
-
-        val calculatedDelay = policy.calculateDelay(
-            message = incomingMessage,
-            consumerContext = consumerContext,
-            exceptionDetails = exceptionDetails,
-            attempt = nextOverall
-        )
-
-        return when (val strategy = config.retry) {
-            is TopicConfiguration.TopicRetryStrategy.SingleTopicRetry -> {
-                if (nextOverall > strategy.maxTotalRetryAttempts) {
-                    return RetryOutcome.Error
-                }
-                RetryOutcome.Retry(
-                    retryTopic = strategy.retryTopic,
-                    delay = calculatedDelay,
-                    nextAttempt = nextAttempt,
-                    overallAttempt = nextOverall,
-                    retryIdentifier = policyIdentifier
-                )
-            }
-
-            is TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry -> {
-                if (nextOverall > strategy.maxTotalRetryAttempts) {
-                    return RetryOutcome.Error
-                }
-                if (logger.isDebugEnabled) {
-                    logger
-                        .atDebug()
-                        .enrichWithConsumerContext(consumerContext)
-                        .log(
-                            "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
-                            incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                        )
-                }
-
-                val bucket = strategy.findBucket(calculatedDelay)
-                if (bucket != null) {
-                    RetryOutcome.Retry(
-                        retryTopic = bucket.topic,
-                        delay = calculatedDelay,
-                        nextAttempt = nextAttempt,
-                        overallAttempt = nextOverall,
-                        retryIdentifier = policyIdentifier
-                    )
-                } else {
-                    logger
-                        .atWarn()
-                        .enrichWithConsumerContext(consumerContext)
-                        .log(
-                            "No retry bucket for delay. | calculated delay = $calculatedDelay | message = {} ",
-                            incomingMessage.toString(Level.WARN, addValue = false, addHeaders = true)
-                        )
-                    RetryOutcome.Error
-                }
-            }
-
-            is TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry -> {
-                if (nextOverall > strategy.maxTotalRetryAttempts) {
-                    return RetryOutcome.Error
-                }
-                if (logger.isDebugEnabled) {
-                    logger
-                        .atDebug()
-                        .enrichWithConsumerContext(consumerContext)
-                        .log(
-                            "Backoff delay | $nextOverall = $calculatedDelay | message = {} ",
-                            incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                        )
-                }
-
-                val bucket = strategy.findBucket(calculatedDelay)
-                if (bucket != null) {
-                    RetryOutcome.Forward(
-                        delayTopic = bucket.topic,
-                        retryTopic = strategy.retryTopic,
-                        delay = calculatedDelay,
-                        nextAttempt = nextAttempt,
-                        overallAttempt = nextOverall,
-                        retryIdentifier = policyIdentifier
-                    )
-                } else {
-                    if (logger.isDebugEnabled) {
-                        logger
-                            .atDebug()
-                            .enrichWithConsumerContext(consumerContext)
-                            .log(
-                                "No retry bucket for delay | calculated delay = $calculatedDelay | message = {} ",
-                                incomingMessage.toString(Level.DEBUG, addValue = false, addHeaders = true)
-                            )
-                    }
-                    RetryOutcome.Error
-                }
-            }
-
-            TopicConfiguration.TopicRetryStrategy.NoneStrategy ->
-                RetryOutcome.Error
-        }
-    }
+    private data class RetryAttempts(val currentAttempt: Int, val nextAttempt: Int, val currentOverall: Int, val nextOverall: Int)
 }

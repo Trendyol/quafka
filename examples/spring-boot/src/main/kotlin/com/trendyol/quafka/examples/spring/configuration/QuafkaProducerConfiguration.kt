@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.trendyol.quafka.examples.spring.configuration.KafkaConfig.clientId
 import com.trendyol.quafka.extensions.producer.OutgoingMessageBuilder
 import com.trendyol.quafka.extensions.serialization.json.*
-import com.trendyol.quafka.extensions.serialization.json.typeResolvers.*
 import com.trendyol.quafka.producer.QuafkaProducer
 import com.trendyol.quafka.producer.configuration.*
 import io.github.embeddedkafka.*
@@ -16,11 +15,8 @@ import org.springframework.context.annotation.*
 class QuafkaProducerConfiguration {
     @Bean
     fun outgoingMessageBuilder(): OutgoingMessageBuilder<ByteArray?, ByteArray?> {
-        val serializer = ByteArrayJsonMessageSerde(
-            ObjectMapper(),
-            AutoPackageNameBasedTypeResolver(HeaderAwareTypeNameExtractor())
-        )
-        val outgoingMessageBuilder = OutgoingMessageBuilder(serializer)
+        val serde = JsonSerializer.byteArray(ObjectMapper())
+        val outgoingMessageBuilder = OutgoingMessageBuilder.create<ByteArray?, ByteArray?>(serde)
         return outgoingMessageBuilder
     }
 

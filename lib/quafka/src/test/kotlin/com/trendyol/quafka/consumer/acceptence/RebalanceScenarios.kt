@@ -3,6 +3,7 @@ package com.trendyol.quafka.consumer.acceptence
 import com.trendyol.quafka.*
 import com.trendyol.quafka.consumer.IncomingMessage
 import com.trendyol.quafka.consumer.QuafkaConsumer
+import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.apache.kafka.common.TopicPartition
 import java.util.concurrent.*
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 class RebalanceScenarios :
     FunSpec({
@@ -120,7 +122,7 @@ class RebalanceScenarios :
             val consumer1 = kafka.createStringStringQuafkaConsumer { builder ->
                 builder.subscribe(*topics.map { it.name() }.toTypedArray()) {
                     withSingleMessageHandler { incomingMessage, consumerContext ->
-                        delay(Random.nextLong(500, 1000))
+                        delay(Random.nextLong(50, 100))
                         incomingMessage.ack()
                         consumedMessages.computeIfAbsent(incomingMessage.topicPartition) { ConcurrentLinkedQueue() }.add(Pair("consumer-1", incomingMessage))
                         waitGroup.add(-1)
@@ -135,7 +137,7 @@ class RebalanceScenarios :
                 val consumer2 = kafka.createStringStringQuafkaConsumer { builder ->
                     builder.subscribe(*topics.map { it.name() }.toTypedArray()) {
                         withSingleMessageHandler { incomingMessage, consumerContext ->
-                            delay(Random.nextLong(500, 1000))
+                            delay(Random.nextLong(50, 100))
                             incomingMessage.ack()
                             consumedMessages.computeIfAbsent(incomingMessage.topicPartition) { ConcurrentLinkedQueue() }.add(Pair("consumer-2", incomingMessage))
                             waitGroup.add(-1)
@@ -146,26 +148,28 @@ class RebalanceScenarios :
                 // assert
 
                 waitGroup.wait()
-                consumedMessages.forEach { (_, topicPartitionMessages) ->
-                    val topicMessages = topicPartitionMessages.map { it.second }
-                    try {
+                eventually(5.seconds) {
+                    consumedMessages.forEach { (_, topicPartitionMessages) ->
+                        val topicMessages = topicPartitionMessages.map { it.second }
+                        try {
 
-                        topicMessages.size shouldBe totalMessagePerPartition
-                        for ((index, message) in topicMessages.withIndex()) {
-                            message.offset shouldBe index
+                            topicMessages.size shouldBe totalMessagePerPartition
+                            for ((index, message) in topicMessages.withIndex()) {
+                                message.offset shouldBe index
+                            }
+                        } catch (e: Throwable) {
+                            println("failed messages: $topicMessages")
+                            throw e
                         }
-                    } catch (e: Throwable) {
-                        println(topicMessages)
-                        throw e
                     }
-                }
 
-                val createdTopicPartitions = topics
-                    .flatMap { createdTopic ->
-                        (0 until createdTopic.numPartitions())
-                            .map { TopicPartition(createdTopic.name(), it) }
-                    }.sortedBy { it.toString() }
-                consumedMessages.map { it.key }.sortedBy { it.toString() } shouldBe createdTopicPartitions
+                    val createdTopicPartitions = topics
+                        .flatMap { createdTopic ->
+                            (0 until createdTopic.numPartitions())
+                                .map { TopicPartition(createdTopic.name(), it) }
+                        }.sortedBy { it.toString() }
+                    consumedMessages.map { it.key }.sortedBy { it.toString() } shouldBe createdTopicPartitions
+                }
             }
         }
     })

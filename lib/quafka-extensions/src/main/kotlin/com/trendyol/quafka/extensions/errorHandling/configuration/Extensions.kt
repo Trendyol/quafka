@@ -6,6 +6,8 @@ import com.trendyol.quafka.extensions.delaying.DelayHeaders.clearDelay
 import com.trendyol.quafka.extensions.delaying.MessageDelayer
 import com.trendyol.quafka.extensions.errorHandling.recoverer.*
 import com.trendyol.quafka.producer.*
+import kotlin.collections.flatMap
+import kotlin.collections.map
 
 /**
  * DSL-friendly shortcut that wires a **consumer subscription + recovery /
@@ -18,11 +20,11 @@ import com.trendyol.quafka.producer.*
  * 2. Subscribes to the **main** topics returned by
  *    [Collection.getAllSubscriptionTopics] (usually the business topics
  *    declared in your config).
- * 3. Builds a [SubscriptionRecoveryStep] for each topic-partition pair so you can
+ * 3. Builds a [SubscriptionRecoveryConfigStep] for each topic-partition pair so you can
  *    configure retry and finally pick **exactly one** message-handling
  *    strategy (`single { … }` or `batch { … }`).
  *
- * The call is meant to replace the verbose boiler-plate you would otherwise
+ * The call is meant to replace the verbose boilerplate you would otherwise
  * write when combining:
  *
  * * `subscribeToRetryForwarderTopics(...)`
@@ -62,8 +64,8 @@ import com.trendyol.quafka.producer.*
  *         .withRecoverable {
  *             withExceptionDetailsProvider { throwable: Throwable -> ExceptionDetails(throwable, throwable.message!!) }
  *                 .withMessageDelayer(MessageDelayer())
- *                 .withPolicyProvider({ message, consumerContext, exceptionReport ->
- *                     when (exceptionReport.exception) {
+ *                 .withPolicyProvider({ message, consumerContext, exceptionDetails ->
+ *                     when (exceptionDetails.exception) {
  *                         is DatabaseConcurrencyException -> RetryPolicy.FullRetry(
  *                             identifier = "DatabaseConcurrencyException",
  *                             inMemoryConfig = InMemoryRetryConfig.basic(maxAttempts = 3, initialDelay = 100.milliseconds),
@@ -81,7 +83,7 @@ import com.trendyol.quafka.producer.*
  *                         )
  *                     }
  *                 })
- *                 .withOutgoingMessageModifier({ message, consumerContext, exceptionReport ->
+ *                 .withOutgoingMessageModifier({ message, consumerContext, exceptionDetails ->
  *                     val newHeaders = this.headers.toMutableList()
  *                     newHeaders.add(header("X-Handled", true))
  *                     this.copy(headers = newHeaders)
@@ -110,31 +112,50 @@ import com.trendyol.quafka.producer.*
  * ```
  */
 fun <TKey, TValue> SubscriptionStep<TKey, TValue>.subscribeWithErrorHandling(
-    topics: Collection<TopicConfiguration>,
+    topics: Collection<TopicConfiguration<*>>,
     danglingTopic: String,
     producer: QuafkaProducer<TKey, TValue>,
     messageDelayer: MessageDelayer = MessageDelayer(),
     retryBuilder: SubscriptionRecoveryConfigStep<TKey, TValue>.() -> SubscriptionOptionsStep<TKey, TValue>
-): SubscriptionBuildStep<TKey, TValue> = this
-    .subscribe(*topics.getAllSubscriptionTopics().toTypedArray()) { subscriptionParameters ->
-        val sub = SubscriptionRecoveryStepImpl(
-            topicResolver = TopicResolver(topics),
-            danglingTopic = danglingTopic,
+): SubscriptionBuildStep<TKey, TValue> {
+    // topics.forEach { it.validate() }
+
+    return this
+        .subscribe(*topics.getAllSubscriptionTopics().toTypedArray()) { subscriptionParameters ->
+            val sub = SubscriptionRecoveryStepImpl(
+                topicResolver = TopicResolver(topics),
+                danglingTopic = danglingTopic,
+                producer = producer,
+                messageDelayer = messageDelayer,
+                subscriptionHandlerChoiceStep = this
+            )
+
+            retryBuilder.invoke(sub)
+        }.subscribeToDelayedTopics(
+            topicConfigurations = topics,
             producer = producer,
             messageDelayer = messageDelayer,
-            subscriptionHandlerChoiceStep = this
+            danglingTopic = danglingTopic
         )
+}
 
-        retryBuilder.invoke(sub)
-    }.subscribeToDelayedTopics(
-        topicConfigurations = topics,
-        producer = producer,
-        messageDelayer = messageDelayer,
-        danglingTopic = danglingTopic
-    )
-
+/**
+ * Creates a single message handler wrapped with error recovery capabilities.
+ *
+ * This is a convenience method that wraps your handler with a [RecoverableMessageExecutor]
+ * using default configuration. For more control, use [subscribeWithErrorHandling] instead.
+ *
+ * @param TKey The type of the message key.
+ * @param TValue The type of the message value.
+ * @param topics The topic configurations defining retry behavior.
+ * @param danglingTopic The fallback topic for messages from unconfigured topics.
+ * @param producer The Kafka producer for sending retry/error messages.
+ * @param messageDelayer Handles delayed message processing (default: new MessageDelayer instance).
+ * @param handler The message handler to wrap with error recovery.
+ * @return A subscription options step for further configuration.
+ */
 fun <TKey, TValue> SubscriptionHandlerChoiceStep<TKey, TValue>.withRecoverableSingleMessageHandler(
-    topics: Collection<TopicConfiguration>,
+    topics: Collection<TopicConfiguration<*>>,
     danglingTopic: String,
     producer: QuafkaProducer<TKey, TValue>,
     messageDelayer: MessageDelayer = MessageDelayer(),
@@ -154,15 +175,33 @@ fun <TKey, TValue> SubscriptionHandlerChoiceStep<TKey, TValue>.withRecoverableSi
     }
 }
 
+/**
+ * Internal function that subscribes to delay topics used in exponential backoff strategies.
+ *
+ * This creates hidden "forwarder" subscriptions that handle messages in delay topics.
+ * These subscriptions wait for the configured delay, then forward messages to their
+ * target retry topics.
+ *
+ * Only applies to [TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry] strategies.
+ * For other strategies, returns without creating subscriptions.
+ *
+ * @param TKey The type of the message key.
+ * @param TValue The type of the message value.
+ * @param topicConfigurations The topic configurations to extract delay topics from.
+ * @param producer The Kafka producer for forwarding messages.
+ * @param messageDelayer Handles the actual delay logic.
+ * @param danglingTopic Fallback topic if forwarding topic is missing.
+ * @return A subscription build step for further configuration.
+ */
 fun <TKey, TValue> SubscriptionStep<TKey, TValue>.subscribeToDelayedTopics(
-    topicConfigurations: Collection<TopicConfiguration>,
+    topicConfigurations: Collection<TopicConfiguration<*>>,
     producer: QuafkaProducer<TKey, TValue>,
     messageDelayer: MessageDelayer,
     danglingTopic: String
 ): SubscriptionBuildStep<TKey, TValue> {
     val forwarderTopics = topicConfigurations
         .flatMap { tc ->
-            if (tc.retry is TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry) {
+            if (tc.retry is TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry) {
                 tc.retry.delayTopics.map { it.topic }
             } else {
                 emptyList()
@@ -188,13 +227,28 @@ fun <TKey, TValue> SubscriptionStep<TKey, TValue>.subscribeToDelayedTopics(
     }
 }
 
-fun Collection<TopicConfiguration>.getAllSubscriptionTopics(): Collection<String> = this
+/**
+ * Extracts all topics that need to be subscribed to for error handling.
+ *
+ * This includes:
+ * - Main topics (the primary topics being consumed)
+ * - Retry topics (depends on the retry strategy)
+ *
+ * The specific retry topics included depend on the strategy:
+ * - [TopicRetryStrategy.SingleTopicRetry]: single retry topic
+ * - [TopicRetryStrategy.ExponentialBackoffMultiTopicRetry]: all delay bucket topics
+ * - [TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry]: single retry topic (delay topics handled separately)
+ * - [TopicRetryStrategy.NoneStrategy]: no retry topics
+ *
+ * @return A distinct collection of all topic names to subscribe to.
+ */
+fun Collection<TopicConfiguration<*>>.getAllSubscriptionTopics(): Collection<String> = this
     .map {
         listOf(it.topic) + when (it.retry) {
-            is TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry -> it.retry.delayTopics.map { it.topic }
-            is TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry -> listOf(it.retry.retryTopic)
-            TopicConfiguration.TopicRetryStrategy.NoneStrategy -> emptyList()
-            is TopicConfiguration.TopicRetryStrategy.SingleTopicRetry -> listOf(it.retry.retryTopic)
+            is TopicRetryStrategy.ExponentialBackoffMultiTopicRetry -> it.retry.delayTopics.map { it.topic }
+            is TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry -> listOf(it.retry.retryTopic)
+            TopicRetryStrategy.NoneStrategy -> emptyList()
+            is TopicRetryStrategy.SingleTopicRetry -> listOf(it.retry.retryTopic)
         }
     }.flatten()
     .toSet()

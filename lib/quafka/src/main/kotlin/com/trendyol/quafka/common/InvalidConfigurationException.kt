@@ -8,7 +8,4 @@ package com.trendyol.quafka.common
  * @param message A descriptive message explaining the configuration issue.
  * @param cause The underlying cause of the exception, if any. Defaults to `null`.
  */
-class InvalidConfigurationException(
-    message: String,
-    cause: Throwable? = null
-) : QuafkaException(message, cause)
+class InvalidConfigurationException(message: String, cause: Throwable? = null) : QuafkaException(message, cause)

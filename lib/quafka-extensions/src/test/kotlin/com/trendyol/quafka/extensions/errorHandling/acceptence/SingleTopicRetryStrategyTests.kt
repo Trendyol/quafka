@@ -59,9 +59,9 @@ class SingleTopicRetryStrategyTests :
                             listOf(
                                 TopicConfiguration(
                                     topicName,
-                                    TopicConfiguration.TopicRetryStrategy.SingleTopicRetry(
+                                    TopicRetryStrategy.SingleTopicRetry(
                                         retryTopicName,
-                                        maxTotalRetryAttempts = maxAttempts
+                                        maxOverallAttempts = maxAttempts
                                     ),
                                     errorTopicName
                                 )
@@ -71,8 +71,8 @@ class SingleTopicRetryStrategyTests :
                         ) {
                             this
                                 .withRecoverable {
-                                    withPolicyProvider { message, consumerContext, exceptionReport ->
-                                        RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
+                                    withPolicyProvider { message, consumerContext, exceptionDetails, _ ->
+                                        RetryPolicy.NonBlocking(PolicyIdentifier("test"), NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
                                     }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
                                 }.withSingleMessageHandler { incomingMessage, consumerContext ->
                                     try {
@@ -103,8 +103,8 @@ class SingleTopicRetryStrategyTests :
                                     message.headers().get(RecoveryHeaders.ORIGINAL_OFFSET)!!.asInt() shouldBe 0
                                     message.headers().get(RecoveryHeaders.EXCEPTION_DETAIL)!!.asString() shouldBe "error"
                                     message.headers().get(RecoveryHeaders.EXCEPTION_AT)?.asInstant() shouldNotBe null
-                                    message.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe index + 1
-                                    message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe index + 1
+                                    message.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe index + 1
+                                    message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe index + 1
                                     message.headers().get(RecoveryHeaders.PUBLISHED_AT)?.asInstant() shouldNotBe null
                                     message.headers().get(DelayHeaders.DELAY_PUBLISHED_AT)?.asInstant() shouldNotBe null
 
@@ -122,8 +122,8 @@ class SingleTopicRetryStrategyTests :
                                 val errorMessage = errorMessages.first()
                                 val headerKeys = errorMessage.headers().toList().map { it.key }
                                 headerKeys shouldNotContainAll listOf(DelayHeaders.DELAY_PUBLISHED_AT, DelayHeaders.DELAY_SECONDS, DelayHeaders.DELAY_STRATEGY)
-                                errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe 3
-                                errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe 3
+                                errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe 3
+                                errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe 3
                                 errorMessage.key() shouldBe "key"
                             }
                         }

@@ -1,6 +1,6 @@
 package com.trendyol.quafka
 
-import com.trendyol.quafka.common.HeaderParsers
+import com.trendyol.quafka.common.DefaultCharset
 import com.trendyol.quafka.consumer.QuafkaConsumer
 import com.trendyol.quafka.consumer.configuration.QuafkaConsumerBuilder
 import com.trendyol.quafka.consumer.configuration.SubscriptionBuildStep
@@ -42,9 +42,7 @@ private val embeddedKafkaDefaultConfig = EmbeddedKafkaConfig
     )
 // val embeddedKafkaExtension: KafkaExtension = KafkaExtension(embeddedKafkaDefaultConfig)
 
-class KafkaExtension(
-    private val config: EmbeddedKafkaConfig = embeddedKafkaDefaultConfig
-) : TestListener {
+class KafkaExtension(private val config: EmbeddedKafkaConfig = embeddedKafkaDefaultConfig) : TestListener {
     private lateinit var embeddedKafka: EmbeddedK
 
     override suspend fun afterSpec(spec: Spec) {
@@ -242,6 +240,6 @@ class KafkaExtension(
     }
 }
 
-fun ByteArray.toStringWithCharset(charset: Charset = HeaderParsers.defaultCharset): String = this.toString(charset)
+fun ByteArray.toStringWithCharset(charset: Charset = DefaultCharset): String = this.toString(charset)
 
-fun String.toByteArrayWithCharset(charset: Charset = HeaderParsers.defaultCharset): ByteArray = this.toByteArray(charset)
+fun String.toByteArrayWithCharset(charset: Charset = DefaultCharset): ByteArray = this.toByteArray(charset)

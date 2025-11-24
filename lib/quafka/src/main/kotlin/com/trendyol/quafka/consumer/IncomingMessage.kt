@@ -4,9 +4,11 @@ import com.trendyol.quafka.common.QuafkaHeader
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType
 import org.slf4j.event.Level
 import java.time.Instant
+import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -33,24 +35,23 @@ import kotlin.jvm.optionals.getOrNull
  * @property clientId The client ID of the Kafka consumer processing this message.
  */
 class IncomingMessage<TKey, TValue> private constructor(
-    val consumerRecord: ConsumerRecord<TKey, TValue>,
+    val topic: String,
+    val partition: Int,
+    val offset: Long,
+    val timestamp: Long,
+    val timestampType: TimestampType,
+    val serializedKeySize: Int,
+    val serializedValueSize: Int,
+    val headers: Collection<Header>,
+    val key: TKey,
+    val value: TValue,
+    val leaderEpoch: Int?,
     private val incomingMessageStringFormatter: IncomingMessageStringFormatter,
     val groupId: String,
     val clientId: String,
     private var acknowledgment: Acknowledgment,
     val consumedAt: Instant
 ) {
-    val topic: String = consumerRecord.topic()
-    val partition = consumerRecord.partition()
-    val offset = consumerRecord.offset()
-    val timestamp = consumerRecord.timestamp()
-    val timestampType: TimestampType = consumerRecord.timestampType()
-    val serializedKeySize = consumerRecord.serializedKeySize()
-    val serializedValueSize = consumerRecord.serializedValueSize()
-    val headers: Collection<Header> = consumerRecord.headers().map { QuafkaHeader(it.key(), it.value()) }
-    val key: TKey = consumerRecord.key()
-    val value: TValue = consumerRecord.value()
-    val leaderEpoch = consumerRecord.leaderEpoch().getOrNull()
     var acknowledged: Boolean = false
         private set
     val topicPartitionOffset: TopicPartitionOffset
@@ -60,6 +61,22 @@ class IncomingMessage<TKey, TValue> private constructor(
     val topicPartition: TopicPartition
         get() {
             return TopicPartition(this.topic, this.partition)
+        }
+    val consumerRecord: ConsumerRecord<TKey, TValue>
+        get() {
+            return ConsumerRecord<TKey, TValue>(
+                topic,
+                partition,
+                offset,
+                timestamp,
+                timestampType,
+                serializedKeySize,
+                serializedValueSize,
+                key,
+                value,
+                RecordHeaders(headers),
+                Optional.ofNullable(leaderEpoch)
+            )
         }
 
     /**
@@ -190,12 +207,22 @@ class IncomingMessage<TKey, TValue> private constructor(
             acknowledgment: Acknowledgment = DefaultAcknowledgment,
             consumedAt: Instant = Instant.now()
         ): IncomingMessage<TKey, TValue> = IncomingMessage(
-            consumerRecord,
-            incomingMessageStringFormatter,
-            groupId,
-            clientId,
-            acknowledgment,
-            consumedAt
+            topic = consumerRecord.topic(),
+            partition = consumerRecord.partition(),
+            offset = consumerRecord.offset(),
+            timestamp = consumerRecord.timestamp(),
+            timestampType = consumerRecord.timestampType(),
+            serializedKeySize = consumerRecord.serializedKeySize(),
+            serializedValueSize = consumerRecord.serializedValueSize(),
+            headers = consumerRecord.headers().map { QuafkaHeader(it.key(), it.value()) },
+            key = consumerRecord.key(),
+            value = consumerRecord.value(),
+            leaderEpoch = consumerRecord.leaderEpoch().getOrNull(),
+            incomingMessageStringFormatter = incomingMessageStringFormatter,
+            groupId = groupId,
+            clientId = clientId,
+            acknowledgment = acknowledgment,
+            consumedAt = consumedAt
         )
     }
 }

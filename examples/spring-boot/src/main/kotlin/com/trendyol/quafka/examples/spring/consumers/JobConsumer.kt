@@ -15,10 +15,7 @@ import org.slf4j.event.Level
 import org.springframework.stereotype.Component
 
 @Component
-class JobConsumer(
-    private val jobRepository: JobRepository,
-    private val objectMapper: ObjectMapper
-) : Consumer<ByteArray, ByteArray> {
+class JobConsumer(private val jobRepository: JobRepository, private val objectMapper: ObjectMapper) : Consumer<ByteArray, ByteArray> {
     private val logger: Logger = LoggerHelper.createLogger(this.javaClass)
 
     override fun configure(

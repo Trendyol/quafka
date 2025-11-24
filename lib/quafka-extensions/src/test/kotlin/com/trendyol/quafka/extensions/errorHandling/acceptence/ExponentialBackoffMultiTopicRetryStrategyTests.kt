@@ -38,8 +38,8 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
             message.headers().get(RecoveryHeaders.ORIGINAL_OFFSET)!!.asInt() shouldBe 0
             message.headers().get(RecoveryHeaders.EXCEPTION_DETAIL)!!.asString() shouldBe exceptionDetail
             message.headers().get(RecoveryHeaders.EXCEPTION_AT)?.asInstant() shouldNotBe null
-            message.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe attempt
-            message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe overallAttempts
+            message.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe attempt
+            message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe overallAttempts
             message.headers().get(RecoveryHeaders.PUBLISHED_AT)?.asInstant() shouldNotBe null
             message.headers().get(DelayHeaders.DELAY_PUBLISHED_AT)?.asInstant() shouldNotBe null
             return message.key() shouldBe "key"
@@ -52,9 +52,9 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                 // create topics
                 val topicName = kafka.getRandomTopicName()
                 val errorTopicName = "$topicName.error"
-                val delay1sTopicName = "$topicName.delay-1s"
-                val delay2sTopicName = "$topicName.delay-2s"
-                val delay3sTopicName = "$topicName.delay-3s"
+                val delay1sTopicName = "$topicName.delay-100ms"
+                val delay2sTopicName = "$topicName.delay-200ms"
+                val delay3sTopicName = "$topicName.delay-300ms"
 
                 kafka.createTopics(
                     listOf(
@@ -89,13 +89,13 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                     listOf(
                                         TopicConfiguration(
                                             topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
-                                                delayTopics = listOf(
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay1sTopicName, 1.seconds),
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay2sTopicName, 2.seconds),
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay3sTopicName, 3.seconds)
+                                            TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
+                                                retryTopics = listOf(
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay1sTopicName, 100.milliseconds),
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay2sTopicName, 200.milliseconds),
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay3sTopicName, 300.milliseconds)
                                                 ),
-                                                maxTotalRetryAttempts = maxAttempts
+                                                maxOverallAttempts = maxAttempts
                                             ),
                                             errorTopicName
                                         )
@@ -105,11 +105,11 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                 ) {
                                     this
                                         .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly(
-                                                    "",
+                                            withPolicyProvider { _, message, consumerContext, exceptionDetails ->
+                                                RetryPolicy.NonBlocking(
+                                                    PolicyIdentifier("test"),
                                                     NonBlockingRetryConfig.custom(3) { _, _, _, attempt ->
-                                                        (attempt * 1).seconds
+                                                        (attempt * 100).milliseconds
                                                     }
                                                 )
                                             }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
@@ -164,8 +164,8 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                         val errorMessage = errorMessages.first()
                                         val headerKeys = errorMessage.headers().toList().map { it.key }
                                         headerKeys shouldNotContainAll listOf(DelayHeaders.DELAY_PUBLISHED_AT, DelayHeaders.DELAY_SECONDS, DelayHeaders.DELAY_STRATEGY)
-                                        errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe 3
-                                        errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe 3
+                                        errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe 3
+                                        errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe 3
                                         errorMessage.key() shouldBe "key"
                                     }
                                 }
@@ -209,11 +209,11 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                     listOf(
                                         TopicConfiguration(
                                             topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
-                                                delayTopics = listOf(
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds)
+                                            TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
+                                                retryTopics = listOf(
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds)
                                                 ),
-                                                maxTotalRetryAttempts = 3
+                                                maxOverallAttempts = 3
                                             ),
                                             errorTopicName
                                         )
@@ -223,8 +223,8 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                 ) {
                                     this
                                         .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
+                                            withPolicyProvider { _, message, consumerContext, exceptionDetails ->
+                                                RetryPolicy.NonBlocking(PolicyIdentifier("test"), NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
                                             }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
                                         }.withSingleMessageHandler { incomingMessage, consumerContext ->
                                             try {
@@ -256,98 +256,6 @@ class ExponentialBackoffMultiTopicRetryStrategyTests :
                                 }
 
                             attemptCount shouldBe 2 // Should be processed twice (initial + retry)
-                        }
-                    }
-            }
-
-            scenario("forward to error topic when no bucket found for delay") {
-                // arrange
-                val topicName = kafka.getRandomTopicName()
-                val errorTopicName = "$topicName.error"
-                val delay1sTopicName = "$topicName.delay-1s"
-
-                kafka.createTopics(
-                    listOf(
-                        kafka.newTopic(topicName, 1),
-                        kafka.newTopic(errorTopicName, 1),
-                        kafka.newTopic(delay1sTopicName, 1)
-                    )
-                )
-
-                kafka
-                    .createStringStringQuafkaProducer()
-                    .use { producer ->
-                        producer.send(
-                            OutgoingMessage.create(
-                                topic = topicName,
-                                partition = null,
-                                key = "no-bucket-key",
-                                value = "no-bucket-value",
-                                headers = emptyList()
-                            )
-                        )
-
-                        val waitGroup = WaitGroup(1)
-                        val consumer = kafka.createStringStringQuafkaConsumer { builder ->
-                            builder
-                                .subscribeWithErrorHandling(
-                                    listOf(
-                                        TopicConfiguration(
-                                            topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
-                                                delayTopics = listOf(
-                                                    // Very small bucket that won't accommodate exponential backoff delay
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay1sTopicName, 1.milliseconds)
-                                                ),
-                                                maxTotalRetryAttempts = 3
-                                            ),
-                                            errorTopicName
-                                        )
-                                    ),
-                                    "dangling-topic",
-                                    producer
-                                ) {
-                                    this
-                                        .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.seconds, 30.seconds))
-                                            }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
-                                        }.withSingleMessageHandler { incomingMessage, consumerContext ->
-                                            try {
-                                                throw Exception("error")
-                                            } finally {
-                                                waitGroup.done()
-                                            }
-                                        }
-                                }
-                        }
-
-                        // act
-                        consumer.start()
-                        consumer.use {
-                            waitGroup.wait()
-
-                            // assert - message should go directly to error topic when no bucket found
-                            kafka
-                                .createStringStringConsumer(errorTopicName)
-                                .use { consumer ->
-                                    eventually(10.seconds) {
-                                        val errorMessages = consumer.poll(1.seconds.toJavaDuration())
-                                        errorMessages.count() shouldBe 1
-                                        val errorMessage = errorMessages.first()
-                                        errorMessage.key() shouldBe "no-bucket-key"
-                                    }
-                                }
-
-                            // delay topic should be empty
-                            kafka
-                                .createStringStringConsumer(delay1sTopicName)
-                                .use { consumer ->
-                                    eventually(5.seconds) {
-                                        val delayMessages = consumer.poll(1.seconds.toJavaDuration())
-                                        delayMessages.count() shouldBe 0
-                                    }
-                                }
                         }
                     }
             }

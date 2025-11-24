@@ -4,10 +4,7 @@ import org.slf4j.*
 import org.slf4j.event.Level
 import org.slf4j.spi.*
 
-internal class QuafkaLogger(
-    private val logger: Logger,
-    private val keyValuePairs: Map<String, Any> = mapOf()
-) : Logger by logger {
+internal class QuafkaLogger(private val logger: Logger, private val keyValuePairs: Map<String, Any> = mapOf()) : Logger by logger {
     override fun equals(other: Any?): Boolean = super.equals(other)
 
     override fun hashCode(): Int = super.hashCode()

@@ -24,15 +24,15 @@ class AdvancedErrorHandlerTests :
         beforeEach {
             producer = mockk(relaxed = true)
             retryPolicyProvider = mockk(relaxed = true) {
-                coEvery { this@mockk(any(), any(), any()) } returns RetryPolicy.NonBlockingOnly(
-                    identifier = "",
+                coEvery { this@mockk(any(), any(), any(), any()) } returns RetryPolicy.NonBlocking(
+                    identifier = PolicyIdentifier("test"),
                     config = NonBlockingRetryConfig.exponentialRandomBackoff(3, 300.milliseconds, 1.minutes)
                 )
             }
             coEvery { producer.send(capture(outgoingMessageSlot)) } returns mockk(relaxed = true)
         }
 
-        fun createSut(topicConfigurations: List<TopicConfiguration>): FailedMessageRouter<String, String> =
+        fun createSut(topicConfigurations: List<TopicConfiguration<*>>): FailedMessageRouter<String, String> =
             FailedMessageRouter(
                 exceptionDetailsProvider = { throwable -> ExceptionDetails(throwable, "") },
                 topicResolver = TopicResolver(topicConfigurations),
@@ -42,9 +42,9 @@ class AdvancedErrorHandlerTests :
                 outgoingMessageModifier = { _, _, _ -> this }
             )
 
-        fun createMessage(topic: String = "product.create", attempt: Int = 0, overallAttempt: Int = 0, retryIdentifier: String = ""): IncomingMessage<String, String> {
+        fun createMessage(topic: String = "product.create", attempt: Int = 0, overallAttempt: Int = 0, policyIdentifier: PolicyIdentifier = PolicyIdentifier.none()): IncomingMessage<String, String> {
             val headers = if (attempt > 0 || overallAttempt > 0) {
-                mutableListOf<Header>().addRetryAttempt(attempt, overallAttempt, retryIdentifier)
+                mutableListOf<Header>().addRetryAttempt(attempt, overallAttempt, policyIdentifier)
             } else {
                 mutableListOf()
             }
@@ -82,19 +82,19 @@ class AdvancedErrorHandlerTests :
                 listOf(
                     TopicConfiguration(
                         topic = "product.create",
-                        retry = TopicConfiguration.TopicRetryStrategy.SingleTopicRetry(
+                        retry = TopicRetryStrategy.SingleTopicRetry(
                             retryTopic = "product.create.retry",
-                            maxTotalRetryAttempts = 5
+                            maxOverallAttempts = 5
                         ),
                         deadLetterTopic = "product.create.error"
                     )
                 )
             )
             // Message was last retried for a different reason ("old-identifier")
-            val message = createMessage(attempt = 2, retryIdentifier = "old-identifier")
+            val message = createMessage(attempt = 2, policyIdentifier = PolicyIdentifier("old-identifier"))
 
-            coEvery { retryPolicyProvider(any(), any(), any()) } returns RetryPolicy.NonBlockingOnly(
-                identifier = "new-identifier",
+            coEvery { retryPolicyProvider(any(), any(), any(), any()) } returns RetryPolicy.NonBlocking(
+                identifier = PolicyIdentifier("new-identifier"),
                 config = NonBlockingRetryConfig.exponentialRandomBackoff(3, 1.seconds, 1.seconds)
             )
 
@@ -113,14 +113,14 @@ class AdvancedErrorHandlerTests :
                     listOf(
                         TopicConfiguration(
                             topic = "product.create",
-                            retry = TopicConfiguration.TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
-                                maxTotalRetryAttempts = 5,
-                                delayTopics = listOf(
-                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(
+                            retry = TopicRetryStrategy.ExponentialBackoffMultiTopicRetry(
+                                maxOverallAttempts = 5,
+                                retryTopics = listOf(
+                                    TopicRetryStrategy.DelayTopicConfiguration(
                                         "product.create.retry.100ms",
                                         500.milliseconds
                                     ),
-                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(
+                                    TopicRetryStrategy.DelayTopicConfiguration(
                                         "product.create.retry.1s",
                                         1.seconds
                                     )
@@ -147,23 +147,6 @@ class AdvancedErrorHandlerTests :
                 // Check that delay headers are added
                 capturedMessage.headers.hasRetryHeaders() shouldBe true
             }
-
-            test("when the calculated delay has no matching bucket, then it should be sent to the dead-letter topic") {
-                // Arrange
-                coEvery { retryPolicyProvider(any(), any(), any()) } returns RetryPolicy.NonBlockingOnly(
-                    identifier = "",
-                    config = NonBlockingRetryConfig.exponentialRandomBackoff(3, 300.milliseconds, 1.minutes)
-                )
-                // This message has been retried 4 times. The next overall attempt is 5.
-                // The calculated delay (5^2.5 * 10 = 559ms) is between the 100ms and 1s buckets.
-                val message = createMessage(overallAttempt = 4)
-
-                // Act
-                recover(message)
-
-                // Assert
-                outgoingMessageSlot.captured.topic shouldBe "product.create.error"
-            }
         }
 
         context("given an exponential backoff to single-topic retry strategy") {
@@ -172,23 +155,23 @@ class AdvancedErrorHandlerTests :
                     listOf(
                         TopicConfiguration(
                             topic = "product.create",
-                            retry = TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
+                            retry = TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
                                 delayTopics = listOf(
-                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(
+                                    TopicRetryStrategy.DelayTopicConfiguration(
                                         "product.create.delay.100ms",
                                         100.milliseconds
                                     ),
-                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(
+                                    TopicRetryStrategy.DelayTopicConfiguration(
                                         "product.create.delay.200ms",
                                         250.milliseconds
                                     ),
-                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(
+                                    TopicRetryStrategy.DelayTopicConfiguration(
                                         "product.create.delay.1s",
                                         1.seconds
                                     )
                                 ),
                                 retryTopic = "product.create.retry", // All messages eventually go here
-                                maxTotalRetryAttempts = 5
+                                maxOverallAttempts = 5
                             ),
                             deadLetterTopic = "product.create.error"
                         )
@@ -198,8 +181,8 @@ class AdvancedErrorHandlerTests :
 
             test("when a message fails, then it should be forwarded to the correct delay bucket topic") {
                 // Arrange
-                coEvery { retryPolicyProvider(any(), any(), any()) } returns RetryPolicy.NonBlockingOnly(
-                    identifier = "",
+                coEvery { retryPolicyProvider(any(), any(), any(), any()) } returns RetryPolicy.NonBlocking(
+                    identifier = PolicyIdentifier("test"),
                     config = NonBlockingRetryConfig.exponentialRandomBackoff(3, 50.milliseconds, 1.minutes)
                 )
                 val message = createMessage() // First failure
@@ -223,9 +206,9 @@ class AdvancedErrorHandlerTests :
                     listOf(
                         TopicConfiguration(
                             topic = "product.create",
-                            retry = TopicConfiguration.TopicRetryStrategy.SingleTopicRetry(
+                            retry = TopicRetryStrategy.SingleTopicRetry(
                                 retryTopic = "product.create.retry",
-                                maxTotalRetryAttempts = 3
+                                maxOverallAttempts = 3
                             ),
                             deadLetterTopic = "product.create.error"
                         )
@@ -246,7 +229,7 @@ class AdvancedErrorHandlerTests :
 
             test("when retry attempts are maxed out, then it should be sent to the dead-letter topic") {
                 // Arrange
-                val message = createMessage(attempt = 3)
+                val message = createMessage(attempt = 3, policyIdentifier = PolicyIdentifier("test"))
 
                 // Act
                 recover(message)
@@ -268,7 +251,7 @@ class AdvancedErrorHandlerTests :
 
             test("when the message is not retryable, then it should be sent to the dead-letter topic") {
                 // Arrange
-                coEvery { retryPolicyProvider(any(), any(), any()) } returns RetryPolicy.NoRetry
+                coEvery { retryPolicyProvider(any(), any(), any(), any()) } returns RetryPolicy.NoRetry
                 val message = createMessage(attempt = 1)
 
                 // Act
@@ -302,7 +285,7 @@ class AdvancedErrorHandlerTests :
                     listOf(
                         TopicConfiguration(
                             topic = "product.create",
-                            retry = TopicConfiguration.TopicRetryStrategy.NoneStrategy,
+                            retry = TopicRetryStrategy.NoneStrategy,
                             deadLetterTopic = "product.create.error"
                         )
                     )

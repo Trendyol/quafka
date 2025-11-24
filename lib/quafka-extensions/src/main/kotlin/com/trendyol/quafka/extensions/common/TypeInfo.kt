@@ -2,10 +2,7 @@ package com.trendyol.quafka.extensions.common
 
 import kotlin.reflect.*
 
-public class TypeInfo(
-    public val type: KClass<*>,
-    public val kotlinType: KType? = null
-) {
+public class TypeInfo(public val type: KClass<*>, public val kotlinType: KType? = null) {
     public constructor(
         type: KClass<*>,
         reifiedType: java.lang.reflect.Type,

@@ -1,7 +1,7 @@
 package com.trendyol.quafka.extensions.producer
 
 import com.trendyol.quafka.common.*
-import com.trendyol.quafka.extensions.serialization.MessageSerde
+import com.trendyol.quafka.extensions.serialization.MessageSerializer
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.*
@@ -9,11 +9,11 @@ import io.mockk.*
 class OutgoingMessageBuilderTests :
     FunSpec({
 
-        lateinit var messageSerde: MessageSerde<String, String>
+        lateinit var messageSerializer: MessageSerializer<String>
         lateinit var sut: OutgoingMessageBuilder<String, String>
         beforeEach {
-            messageSerde = mockk(relaxed = true)
-            sut = OutgoingMessageBuilder(messageSerde)
+            messageSerializer = mockk(relaxed = true)
+            sut = OutgoingMessageBuilder.create(messageSerializer)
         }
 
         test("should set partition in FluentOutgoingMessageBuilder") {
@@ -84,8 +84,7 @@ class OutgoingMessageBuilderTests :
             // Arrange
             val value = "test-value"
             val key = "test-key"
-            every { messageSerde.serializeKey(key) } returns key
-            every { messageSerde.serializeValue(value) } returns value
+            every { messageSerializer.serialize(value) } returns value
 
             val builder = sut
                 .new("test-topic", key, value)

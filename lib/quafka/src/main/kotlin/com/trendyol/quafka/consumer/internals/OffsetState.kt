@@ -13,10 +13,7 @@ import kotlinx.coroutines.CompletableDeferred
  * @property offset The offset value associated with this state.
  * @property maxRetryAttempts The maximum number of retry attempts allowed for committing the offset.
  */
-internal class OffsetState(
-    val offset: Long,
-    val maxRetryAttempts: Int = 0
-) {
+internal class OffsetState(val offset: Long, val maxRetryAttempts: Int = 0) {
     /**
      * Indicates whether this offset is set for acknowledgment or commit.
      *

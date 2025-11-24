@@ -5,9 +5,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
-class WaitGroup(
-    initial: Int = 0
-) {
+class WaitGroup(initial: Int = 0) {
     private val counter = AtomicInteger(initial)
     private val waiter = Channel<Unit>()
 

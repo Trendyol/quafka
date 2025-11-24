@@ -9,7 +9,4 @@ package com.trendyol.quafka.common
  * @param message A descriptive message explaining the error.
  * @param cause The underlying cause of the exception, if any. Defaults to `null`.
  */
-open class QuafkaException(
-    message: String,
-    cause: Throwable? = null
-) : RuntimeException(message, cause)
+open class QuafkaException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)

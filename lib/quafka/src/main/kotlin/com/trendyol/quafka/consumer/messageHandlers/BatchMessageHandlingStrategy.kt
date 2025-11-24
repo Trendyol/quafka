@@ -2,9 +2,7 @@ package com.trendyol.quafka.consumer.messageHandlers
 
 import com.trendyol.quafka.common.rethrowIfFatalOrCancelled
 import com.trendyol.quafka.consumer.*
-import com.trendyol.quafka.consumer.errorHandlers.FallbackErrorHandler
 import com.trendyol.quafka.logging.*
-import kotlinx.coroutines.ensureActive
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import kotlin.time.Duration
@@ -15,12 +13,13 @@ class BatchMessageHandlingStrategy<TKey, TValue>(
     batchSize: Int,
     batchTimeout: Duration,
     private val autoAck: Boolean,
-    private val fallbackErrorHandler: FallbackErrorHandler<TKey, TValue> = FallbackErrorHandler.RetryOnFailure()
+    private val resilientHandler: ResilientHandler<TKey, TValue>
 ) : MessageHandlingStrategy<TKey, TValue>,
     BatchMessageHandler<TKey, TValue> {
     private val logger: Logger = LoggerHelper.createLogger(clazz = this.javaClass)
 
     internal var batchSize: Int = batchSize
+
         private set
 
     internal var batchTimeout: Duration = batchTimeout
@@ -55,7 +54,7 @@ class BatchMessageHandlingStrategy<TKey, TValue>(
         incomingMessages: Collection<IncomingMessage<TKey, TValue>>,
         consumerContext: ConsumerContext
     ) {
-        this.fallbackErrorHandler.handle(
+        this.resilientHandler.handle(
             consumerContext,
             incomingMessages
         ) { _, _ ->
@@ -74,10 +73,9 @@ class BatchMessageHandlingStrategy<TKey, TValue>(
 
                 throw exception
             }
-
-            if (autoAck) {
-                incomingMessages.ackAll()
-            }
+        }
+        if (autoAck) {
+            incomingMessages.ackAll()
         }
     }
 }

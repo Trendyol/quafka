@@ -4,6 +4,7 @@ import com.trendyol.quafka.*
 import com.trendyol.quafka.consumer.*
 import com.trendyol.quafka.consumer.configuration.*
 import com.trendyol.quafka.consumer.messageHandlers.*
+import com.trendyol.quafka.consumer.messageHandlers.ResilientHandler
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -113,7 +114,8 @@ class TopicPartitionWorkerTests :
                                 throw ex
                             }
                         },
-                        true
+                        true,
+                        resilientHandler = ResilientHandler.Retrying.basic()
                     )
                 ),
                 job
@@ -151,7 +153,8 @@ class TopicPartitionWorkerTests :
                             consumerContext = cx
                             waitGroup.done()
                         },
-                        true
+                        true,
+                        resilientHandler = ResilientHandler.Retrying.basic()
                     )
                 ),
                 job
@@ -186,7 +189,8 @@ class TopicPartitionWorkerTests :
                     messageHandlingStrategy = SingleMessageHandlingStrategy<String, String>(
                         { im, cx ->
                         },
-                        true
+                        true,
+                        resilientHandler = ResilientHandler.Retrying.basic()
                     )
                 )
             )
@@ -226,7 +230,8 @@ class TopicPartitionWorkerTests :
                         },
                         3,
                         ZERO,
-                        true
+                        true,
+                        resilientHandler = ResilientHandler.Retrying.basic()
                     )
                 )
             )
@@ -268,7 +273,8 @@ class TopicPartitionWorkerTests :
                         },
                         3,
                         200.milliseconds,
-                        true
+                        true,
+                        resilientHandler = ResilientHandler.Retrying.basic()
                     )
                 )
             )

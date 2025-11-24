@@ -1,0 +1,10 @@
+{
+    "name": "Dokka GitHub Pages deployment",
+    "description": "A workflow template to deploy the API documentation to GitHub Pages with Dokka. Please update the branches, runners, and the JDK versions and distributions according to your specific needs.",
+    "categories": [
+        "Dokka",
+        "Kotlin",
+        "Kotlin Multiplatform",
+        "Gradle"
+    ]
+}

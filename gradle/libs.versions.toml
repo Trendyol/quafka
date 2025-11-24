@@ -1,5 +1,6 @@
 [versions]
 kotlin = "2.2.0"
+java = "21"
 kotlinx = "1.10.2"
 spring-boot = "3.5.4"
 spring-dependency-management = "1.1.7"
@@ -10,7 +11,7 @@ resillience4j = "2.3.0"
 slf4j = "2.0.17"
 kafka = "3.9.1"
 logback-classic= "1.5.18"
-spotless = "7.2.1"
+spotless = "8.0.0"
 dokka = "2.1.0"
 kover = "0.9.1"
 kotest = "5.9.1"
@@ -68,6 +69,8 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 # Tooling
 ktlint-cli = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+dokka-gradle-plugin = { group = "org.jetbrains.dokka", name = "dokka-gradle-plugin", version.ref = "dokka" }
 
 [plugins]
 spring-plugin = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
@@ -78,3 +81,4 @@ testLogger = { id = "com.adarshr.test-logger", version = "4.0.0" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 maven-publish = { id = "com.vanniktech.maven.publish", version = "0.34.0" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }

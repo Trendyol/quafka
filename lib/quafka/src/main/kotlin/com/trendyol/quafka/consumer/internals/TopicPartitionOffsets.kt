@@ -52,7 +52,7 @@ internal class TopicPartitionOffsets(
     /**
      * Retrieves a list of offset states that are ready to be committed.
      *
-     * When [commitOptions.deferCommitsUntilNoGaps] is enabled, this method returns a contiguous list
+     * When [CommitOptions.deferCommitsUntilNoGaps] is enabled, this method returns a contiguous list
      * of offset states starting from the lowest offset, stopping when a gap is encountered or when a
      * non-ready state is found. Otherwise, all ready offset states are returned sorted by offset.
      *
@@ -116,7 +116,7 @@ internal class TopicPartitionOffsets(
     /**
      * Determines whether the given [incomingMessage] is valid for commit.
      *
-     * A message is valid if either out-of-order commits are allowed by [commitOptions.allowOutOfOrderCommit]
+     * A message is valid if either out-of-order commits are allowed by [CommitOptions.allowOutOfOrderCommit]
      * or if its offset is greater than the latest committed offset.
      *
      * @param incomingMessage The message to validate.
@@ -193,7 +193,7 @@ internal class TopicPartitionOffsets(
                 if (!this.isCommitMode) {
                     switchedToCommit = true
                 }
-                commit(CompletableDeferred<Unit>(coroutineScope.coroutineContext.job))
+                commit(CompletableDeferred(coroutineScope.coroutineContext.job))
             }
         }
         if (offset == null) {

@@ -4,7 +4,7 @@ import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.header.internals.RecordHeader
 import java.nio.ByteBuffer
 
-class QuafkaHeader : Header {
+internal class QuafkaHeader : Header {
     private var inner: Header
     constructor(
         key: String,
@@ -17,7 +17,7 @@ class QuafkaHeader : Header {
         inner = RecordHeader(key, value)
     }
 
-    override fun toString(): String = "key = ${key()}, value = ${String(value(), HeaderParsers.defaultCharset)}"
+    override fun toString(): String = "key = ${key()}, value = ${String(value(), DefaultCharset)}"
 
     override fun key(): String = inner.key()
 

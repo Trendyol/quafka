@@ -8,7 +8,6 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.*
-import org.apache.kafka.common.header.internals.*
 import org.apache.kafka.common.serialization.ByteArraySerializer
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -43,9 +42,9 @@ class ProducerTests :
                             value = "value1".toByteArray(),
                             correlationMetadata = UUID.randomUUID().toString(),
                             headers =
-                                listOf(
-                                    header("X-Header", "header value1")
-                                )
+                            listOf(
+                                header("X-Header", "header value1")
+                            )
                         )
                     )
                     producer
@@ -60,9 +59,9 @@ class ProducerTests :
                             value = "value2".toByteArray(),
                             correlationMetadata = UUID.randomUUID().toString(),
                             headers =
-                                listOf(
-                                    header("X-Header", "header value2")
-                                )
+                            listOf(
+                                header("X-Header", "header value2")
+                            )
                         )
                     )
                 }
@@ -78,9 +77,9 @@ class ProducerTests :
                     value = "value1".toByteArray(),
                     correlationMetadata = UUID.randomUUID().toString(),
                     headers =
-                        listOf(
-                            header("X-Header", "header value1")
-                        )
+                    listOf(
+                        header("X-Header", "header value1")
+                    )
                 )
             val outgoingMessage2: OutgoingMessage<ByteArray?, ByteArray?> =
                 OutgoingMessage.create(
@@ -89,9 +88,9 @@ class ProducerTests :
                     value = "value2".toByteArray(),
                     correlationMetadata = UUID.randomUUID().toString(),
                     headers =
-                        listOf(
-                            header("X-Header", "header value2")
-                        )
+                    listOf(
+                        header("X-Header", "header value2")
+                    )
                 )
             createKafkaProducer()
                 .use { producer ->
@@ -128,9 +127,9 @@ class ProducerTests :
                     value = "value".toByteArray(),
                     correlationMetadata = UUID.randomUUID().toString(),
                     headers =
-                        listOf(
-                            header("X-Header", "header value")
-                        )
+                    listOf(
+                        header("X-Header", "header value")
+                    )
                 )
 
             createKafkaProducer()
@@ -155,9 +154,9 @@ class ProducerTests :
                     value = "value".toByteArray(),
                     correlationMetadata = UUID.randomUUID().toString(),
                     headers =
-                        listOf(
-                            header("X-Header", "header value")
-                        )
+                    listOf(
+                        header("X-Header", "header value")
+                    )
                 )
             createKafkaProducer().use { producer ->
                 val response = producer.send(

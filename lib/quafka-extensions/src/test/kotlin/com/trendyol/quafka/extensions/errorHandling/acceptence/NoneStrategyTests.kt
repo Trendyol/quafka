@@ -51,7 +51,7 @@ class NoneStrategyTests :
                             listOf(
                                 TopicConfiguration(
                                     topicName,
-                                    TopicConfiguration.TopicRetryStrategy.NoneStrategy,
+                                    TopicRetryStrategy.NoneStrategy,
                                     errorTopicName
                                 )
                             ),

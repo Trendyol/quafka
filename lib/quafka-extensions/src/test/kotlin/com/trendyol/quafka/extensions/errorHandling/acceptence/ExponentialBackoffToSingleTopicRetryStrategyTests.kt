@@ -69,13 +69,13 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                                     listOf(
                                         TopicConfiguration(
                                             topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
+                                            TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
                                                 retryTopic = retryTopicName,
-                                                maxTotalRetryAttempts = maxAttempts,
+                                                maxOverallAttempts = maxAttempts,
                                                 delayTopics = listOf(
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds),
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay10sTopicName, 10.seconds),
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay30sTopicName, 30.seconds)
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds),
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay10sTopicName, 10.seconds),
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay30sTopicName, 30.seconds)
                                                 )
                                             ),
                                             errorTopicName
@@ -86,8 +86,8 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                                 ) {
                                     this
                                         .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
+                                            withPolicyProvider { _, message, consumerContext, exceptionDetails ->
+                                                RetryPolicy.NonBlocking(PolicyIdentifier("test"), NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
                                             }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
                                         }.withSingleMessageHandler { incomingMessage, consumerContext ->
                                             try {
@@ -115,8 +115,8 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                                 message.headers().get(RecoveryHeaders.ORIGINAL_OFFSET)!!.asInt() shouldBe 0
                                 message.headers().get(RecoveryHeaders.EXCEPTION_DETAIL)!!.asString() shouldBe "error"
                                 message.headers().get(RecoveryHeaders.EXCEPTION_AT)?.asInstant() shouldNotBe null
-                                message.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe index + 1
-                                message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe index + 1
+                                message.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe index + 1
+                                message.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe index + 1
                                 message.headers().get(RecoveryHeaders.PUBLISHED_AT)?.asInstant() shouldNotBe null
                                 message.headers().get(DelayHeaders.DELAY_PUBLISHED_AT)?.asInstant() shouldNotBe null
                                 message.headers().get(RecoveryHeaders.FORWARDING_TOPIC)?.asString() shouldBe retryTopicName
@@ -133,8 +133,8 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                             val errorMessage = errorMessages.first()
                             val headerKeys = errorMessage.headers().toList().map { it.key }
                             headerKeys shouldNotContainAll listOf(DelayHeaders.DELAY_PUBLISHED_AT, DelayHeaders.DELAY_SECONDS, DelayHeaders.DELAY_STRATEGY)
-                            errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPT)?.asInt() shouldBe 3
-                            errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPT)?.asInt() shouldBe 3
+                            errorMessage.headers().get(RecoveryHeaders.RETRY_ATTEMPTS)?.asInt() shouldBe 3
+                            errorMessage.headers().get(RecoveryHeaders.OVERALL_RETRY_ATTEMPTS)?.asInt() shouldBe 3
                             errorMessage.key() shouldBe "key"
                         }
                     }
@@ -179,11 +179,11 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                                     listOf(
                                         TopicConfiguration(
                                             topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
+                                            TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
                                                 retryTopic = retryTopicName,
-                                                maxTotalRetryAttempts = 3,
+                                                maxOverallAttempts = 3,
                                                 delayTopics = listOf(
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds)
+                                                    TopicRetryStrategy.DelayTopicConfiguration(delay5sTopicName, 5.seconds)
                                                 )
                                             ),
                                             errorTopicName
@@ -194,8 +194,8 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                                 ) {
                                     this
                                         .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
+                                            withPolicyProvider { _, message, consumerContext, exceptionDetails ->
+                                                RetryPolicy.NonBlocking(PolicyIdentifier("test"), NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.milliseconds, 10.seconds))
                                             }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
                                         }.withSingleMessageHandler { incomingMessage, consumerContext ->
                                             try {
@@ -223,94 +223,6 @@ class ExponentialBackoffToSingleTopicRetryStrategyTests :
                         }
 
                         attemptCount shouldBe 2 // Should be processed twice (initial + retry)
-                    }
-            }
-
-            scenario("forward to error topic when no bucket found for delay") {
-                // arrange
-                val topicName = kafka.getRandomTopicName()
-                val retryTopicName = "$topicName.retry"
-                val errorTopicName = "$topicName.error"
-                val delay1sTopicName = "$topicName.delay-1s"
-
-                kafka.createTopics(
-                    listOf(
-                        kafka.newTopic(topicName, 1),
-                        kafka.newTopic(retryTopicName, 1),
-                        kafka.newTopic(errorTopicName, 1),
-                        kafka.newTopic(delay1sTopicName, 1)
-                    )
-                )
-
-                kafka
-                    .createStringStringQuafkaProducer()
-                    .use { producer ->
-
-                        producer.send(
-                            OutgoingMessage.create(
-                                topic = topicName,
-                                partition = null,
-                                key = "no-bucket-key",
-                                value = "no-bucket-value",
-                                headers = emptyList()
-                            )
-                        )
-
-                        val waitGroup = WaitGroup(1)
-                        val consumer = kafka.createStringStringQuafkaConsumer { builder ->
-                            builder
-                                .subscribeWithErrorHandling(
-                                    listOf(
-                                        TopicConfiguration(
-                                            topicName,
-                                            TopicConfiguration.TopicRetryStrategy.ExponentialBackoffToSingleTopicRetry(
-                                                retryTopic = retryTopicName,
-                                                maxTotalRetryAttempts = 3,
-                                                delayTopics = listOf(
-                                                    // Very small bucket that won't accommodate exponential backoff delay
-                                                    TopicConfiguration.TopicRetryStrategy.DelayTopicConfiguration(delay1sTopicName, 1.milliseconds)
-                                                )
-                                            ),
-                                            errorTopicName
-                                        )
-                                    ),
-                                    "dangling-topic",
-                                    producer
-                                ) {
-                                    this
-                                        .withRecoverable {
-                                            withPolicyProvider { message, consumerContext, exceptionReport ->
-                                                RetryPolicy.NonBlockingOnly("", NonBlockingRetryConfig.exponentialRandomBackoff(3, 10.seconds, 30.seconds))
-                                            }.withExceptionDetailsProvider { throwable -> ExceptionDetails(throwable, throwable.message!!) }
-                                        }.withSingleMessageHandler { incomingMessage, consumerContext ->
-                                            try {
-                                                throw Exception("error")
-                                            } finally {
-                                                waitGroup.done()
-                                            }
-                                        }
-                                }
-                        }
-
-                        // act
-                        consumer.start()
-                        waitGroup.wait()
-
-                        // assert - message should go directly to error topic when no bucket found
-                        val errorTopicConsumer = kafka.createStringStringConsumer(errorTopicName)
-                        eventually(10.seconds) {
-                            val errorMessages = errorTopicConsumer.poll(1.seconds.toJavaDuration())
-                            errorMessages.count() shouldBe 1
-                            val errorMessage = errorMessages.first()
-                            errorMessage.key() shouldBe "no-bucket-key"
-                        }
-
-                        // delay topic should be empty
-                        val delayTopicConsumer = kafka.createStringStringConsumer(delay1sTopicName)
-                        eventually(5.seconds) {
-                            val delayMessages = delayTopicConsumer.poll(1.seconds.toJavaDuration())
-                            delayMessages.count() shouldBe 0
-                        }
                     }
             }
         }

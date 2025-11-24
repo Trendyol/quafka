@@ -74,3 +74,25 @@ interface QuafkaProducerBuilder<TKey, TValue> {
      */
     fun build(): QuafkaProducer<TKey, TValue>
 }
+
+/**
+ * Extension function to set the same serializer for both key and value.
+ *
+ * This is a convenience method for cases where the key and value types are the same.
+ * Instead of calling `withSerializer(serializer, serializer)`, you can simply call
+ * `withSerializer(serializer)`.
+ *
+ * @param T The common type for both key and value.
+ * @param serializer The serializer to use for both key and value serialization.
+ * @return The builder instance for method chaining.
+ *
+ * @sample
+ * ```kotlin
+ * val producer = QuafkaProducerBuilder<String, String>(properties)
+ *     .withSerializer(StringSerializer())
+ *     .build()
+ * ```
+ */
+fun <T> QuafkaProducerBuilder<T, T>.withSerializer(
+    serializer: Serializer<T>
+): QuafkaProducerBuilder<T, T> = withSerializer(serializer, serializer)

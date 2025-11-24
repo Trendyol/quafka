@@ -10,7 +10,7 @@
   - `commit()` writes the offset to Kafka and returns a `Deferred<Unit>`.
   - `autoAckAfterProcess(true)` acknowledges automatically on success.
 - **Backpressure**: Configure `withBackpressure(backpressureBufferSize, backpressureReleaseTimeout)` per subscription to pause/resume fetching when the buffer is full.
-- **Fallback error handling**: Single/Batch strategies wrap your handler and delegate failures to a fallback error handler; with extensions you can enable in-memory and Kafka-based retries.
+- **Resilient error handling**: Single/Batch strategies wrap your handler and delegate failures to a resilient handler; with extensions you can enable in-memory retries, safety nets, and custom middleware pipelines.
 
 ### Detailed consumer configuration
 - Deserializers: `withDeserializer(key, value)` or provide classes via properties.
@@ -29,7 +29,7 @@
 - Per-subscription options (after choosing a handler):
   - `autoAckAfterProcess(Boolean)`
   - `withBackpressure(bufferSize, releaseTimeout)`
-  - `withFallbackErrorHandler(handler)`
+  - `withResilientHandler(handler)`
 
 ### Producer essentials
 - Serializers: `withSerializer(key, value)`.
@@ -42,6 +42,7 @@
 - Retry orchestration: `TopicConfiguration` + `subscribeWithErrorHandling(..)` and `RetryPolicy` (NoRetry, InMemoryOnly, NonBlockingOnly, FullRetry).
 - Delayed processing: header-based delays and forwarding via `MessageDelayer`.
 - Pipeline middleware: `usePipelineMessageHandler { use { envelope, next -> ... } }` to compose reusable steps (logging, tracing, error handling, etc.).
+- Resilient handlers bridge: Use core `ResilientHandler` in middleware pipelines with `useResilientHandler()` or add ultimate safety net with `withSafetyNet()`.
 
 ### Rebalancing model (high level)
 - Quafka tracks the current Kafka assignment; on change it:

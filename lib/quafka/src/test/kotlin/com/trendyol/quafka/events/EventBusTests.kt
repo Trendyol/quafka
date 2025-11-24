@@ -9,13 +9,9 @@ import kotlin.time.Duration.Companion.milliseconds
 class EventBusTests :
     FunSpec({
 
-        data class EventProcessed(
-            val offset: Int
-        ) : QuafkaEvent
+        data class EventProcessed(val offset: Int) : QuafkaEvent
 
-        data class EventReceived(
-            val offset: Int
-        ) : QuafkaEvent
+        data class EventReceived(val offset: Int) : QuafkaEvent
 
         test("should publish multiple events and subscribe to events") {
             val eventBus = EventBus()

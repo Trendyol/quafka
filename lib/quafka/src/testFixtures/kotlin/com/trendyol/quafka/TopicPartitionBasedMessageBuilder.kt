@@ -3,10 +3,7 @@ package com.trendyol.quafka
 import com.trendyol.quafka.consumer.TopicPartition
 import java.util.concurrent.atomic.AtomicLong
 
-class TopicPartitionBasedMessageBuilder<TKey, TValue>(
-    val topic: String,
-    val partition: Int
-) {
+class TopicPartitionBasedMessageBuilder<TKey, TValue>(val topic: String, val partition: Int) {
     constructor(topicPartition: TopicPartition) : this(topicPartition.topic(), topicPartition.partition())
 
     val offsets = AtomicLong(-1)

@@ -29,9 +29,8 @@ import kotlin.time.Duration.Companion.seconds
 fun <TKey, TValue> QuafkaConsumerBuilder(properties: Map<String, Any>): QuafkaConsumerBuilder<TKey, TValue> =
     QuafkaConsumerBuilderImpl(properties)
 
-private class QuafkaConsumerBuilderImpl<TKey, TValue>(
-    properties: Map<String, Any>
-) : QuafkaConsumerBuilder<TKey, TValue>,
+private class QuafkaConsumerBuilderImpl<TKey, TValue>(properties: Map<String, Any>) :
+    QuafkaConsumerBuilder<TKey, TValue>,
     SubscriptionBuildStep<TKey, TValue> {
     private val logger = LoggerHelper.createLogger(QuafkaConsumerBuilderImpl::class.java)
     private val properties: MutableMap<String, Any> = properties.toMutableMap()

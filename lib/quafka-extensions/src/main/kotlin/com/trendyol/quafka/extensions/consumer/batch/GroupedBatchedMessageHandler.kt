@@ -15,9 +15,8 @@ typealias GroupingDelegate<TKey, TValue> = (incomingMessage: IncomingMessage<TKe
  * @param TKey the type of the message key
  * @param TValue the type of the message value
  */
-class GroupedBatchedMessageHandler<TKey, TValue>(
-    private val options: GroupedBatchedMessageHandlerOptions<TKey, TValue>
-) : BatchMessageHandler<TKey, TValue> {
+class GroupedBatchedMessageHandler<TKey, TValue>(private val options: GroupedBatchedMessageHandlerOptions<TKey, TValue>) :
+    BatchMessageHandler<TKey, TValue> {
     /**
      * Processes a batch of incoming messages by grouping them using the provided grouping function.
      * Messages within each group are processed sequentially, while groups are processed concurrently.

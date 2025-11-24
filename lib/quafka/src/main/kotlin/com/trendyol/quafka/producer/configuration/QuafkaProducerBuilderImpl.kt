@@ -26,9 +26,7 @@ fun <TKey, TValue> QuafkaProducerBuilder(
     properties: Map<String, Any>
 ): QuafkaProducerBuilder<TKey, TValue> = QuafkaProducerBuilderImpl(properties)
 
-private class QuafkaProducerBuilderImpl<TKey, TValue>(
-    properties: Map<String, Any>
-) : QuafkaProducerBuilder<TKey, TValue> {
+private class QuafkaProducerBuilderImpl<TKey, TValue>(properties: Map<String, Any>) : QuafkaProducerBuilder<TKey, TValue> {
     private val properties: MutableMap<String, Any> = properties.toMutableMap()
     private var timeProvider: TimeProvider = SystemTimeProvider
     private var outgoingMessageStringFormatter = OutgoingMessageStringFormatter.Default

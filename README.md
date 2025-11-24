@@ -1,18 +1,33 @@
-
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/quafka/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/quafka)
 
-<h1 align="center">Quafka</h1>
-<div align="center">
-<p >
-  Quafka is a non-blocking Kafka client library built on top of the Apache Kafka Java client, designed for Kotlin with first-class coroutine support 
+<h1 align="center"><img alt="Quafka" src="./docs/assets/logo.jpeg" width="400px">
+  <br>Quafka
+</h1>
+
+<p align="center">
+  <strong>A non-blocking Kafka client library for Kotlin with first-class coroutine support</strong>
 </p>
-<img alt="Quafka" src="./docs/assets/logo.jpeg" width="400px">
-</div>
 
+<p align="center">
+  <a href="https://codecov.io/gh/Trendyol/quafka">
+    <img src="https://codecov.io/gh/Trendyol/quafka/graph/badge.svg?token=HcKBT3chO7" alt="codecov">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
+  </a>
+</p>
 
-[![codecov](https://codecov.io/gh/Trendyol/quafka/graph/badge.svg?token=HcKBT3chO7)](https://codecov.io/gh/Trendyol/quafka)
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#examples">Examples</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#contributing">Contributing</a>
+</p>
 
-## What is Quafka?
+---
+
+## About
 
 Quafka is a non-blocking Kafka client library built on top of the Apache Kafka Java client, designed for Kotlin with first-class coroutine support. It separates polling from processing, preserves per-partition ordering, and provides flexible single and batch message handling, backpressure control, and a fluent, type-safe configuration DSL.
 
@@ -20,192 +35,340 @@ Quafka also ships with an extensions module that adds higher-level capabilities 
 
 ## Features
 
-- **Non-Blocking**
-  - Fully supports Kotlin coroutines, enabling highly efficient, asynchronous operations. This ensures that your Kafka client remains responsive and scalable under heavy loads without the complexity of thread management.
+### Core Features
 
-- **Separated Polling and Processing Model**
-  - Quafka employs a decoupled threading model where polling and processing happen on independent threads. This prevents Kafka consumers from being affected by processing delays, reducing the risk of consumer group rebalancing and ensuring consistent throughput even for long-running message processing tasks.
+- **🚀 Non-Blocking & Coroutine-First**
+  - Fully supports Kotlin coroutines, enabling highly efficient, asynchronous operations
+  - Ensures your Kafka client remains responsive and scalable under heavy loads without thread management complexity
 
-- **Worker per Topic and Partition**
-  - Dedicated workers are created for each topic-partition pair, ensuring that messages are processed sequentially within a partition while maximizing parallelism across partitions. This approach guarantees message order preservation per partition and optimizes resource utilization across the system.
+- **🔄 Separated Polling and Processing Model**
+  - Decoupled threading model where polling and processing happen independently
+  - Prevents consumer group rebalancing due to slow processing
+  - Ensures consistent throughput even for long-running tasks
 
-- **Batch and Single Message Handling**
-  - Quafka provides seamless support for both batch and individual message processing, giving developers the flexibility to choose the most efficient approach based on their application’s requirements. Built-in callbacks simplify integration and reduce boilerplate code.
+- **⚡ Worker per Topic and Partition**
+  - Dedicated workers for each topic-partition pair
+  - Sequential processing within a partition for order preservation
+  - Maximum parallelism across partitions for optimal resource utilization
 
-- **Backpressure Management**
-  - Quafka includes advanced backpressure controls that dynamically adjust message fetching based on consumer performance. This prevents memory overload and ensures graceful degradation during high load. Configure backpressure using message count, timeouts, or both, tailored to your specific needs.
+- **📦 Batch and Single Message Handling**
+  - Seamless support for both batch and individual message processing
+  - Flexible callbacks to choose the most efficient approach
+  - Reduced boilerplate code
 
-- **Fluent and Safe Configuration**
-  - The library offers a developer-friendly configuration DSL, guiding you step-by-step through setting up consumers and producers. Type-safe defaults and validations help prevent configuration errors, making it simple to get started while ensuring production readiness.
+- **🎛️ Backpressure Management**
+  - Advanced backpressure controls that dynamically adjust message fetching
+  - Prevents memory overload and ensures graceful degradation
+  - Configurable using message count, timeouts, or both
 
-- **Batch Publishing**
-  - Efficiently publish multiple messages in a single operation, reducing network overhead and improving performance. Ideal for use cases where high throughput and low latency are critical.
+- **🔧 Fluent and Safe Configuration**
+  - Developer-friendly configuration DSL
+  - Type-safe defaults and validations
+  - Step-by-step guidance for setup
 
-- **Error Handling**
-  - Robust error handling mechanisms provide resilience in processing and publishing. Options include automatic retries, error callbacks, and configurable failure strategies, ensuring that your system can recover gracefully from unexpected issues.
+- **📤 Batch Publishing**
+  - Efficiently publish multiple messages in a single operation
+  - Reduced network overhead for improved performance
+  - Ideal for high-throughput scenarios
 
-## Why choose Quafka over Apache Kafka client or Spring Kafka?
+- **🛡️ Error Handling**
+  - Robust error handling with automatic retries
+  - Error callbacks and configurable failure strategies
+  - Graceful recovery from unexpected issues
 
-### Compared to the raw Apache Kafka Java client
-- **Coroutine-first**: Natural Kotlin coroutine APIs for backpressure-friendly, non-blocking code.
-- **Less boilerplate**: Builders for consumers and producers; built-in single/batch strategies, ack/commit helpers.
-- **Operational safety**: Decoupled poll/processing model reduces rebalance surprises from slow handlers.
-- **Backpressure**: Simple, configurable buffering and release timeouts.
-- **Extensions**: Retry orchestration, delayed processing, and pipelines without custom plumbing.
+## Why Quafka?
+
+### Compared to Apache Kafka Java Client
+
+| Feature | Quafka | Apache Kafka Java Client |
+|---------|--------|--------------------------|
+| **Coroutine Support** | ✅ Native coroutine APIs | ❌ Blocking/callback-based |
+| **Boilerplate** | ✅ Minimal with builders | ❌ Verbose configuration |
+| **Poll/Process Separation** | ✅ Built-in decoupling | ❌ Manual implementation |
+| **Backpressure** | ✅ Simple configuration | ❌ Manual implementation |
+| **Retry Mechanism** | ✅ Built-in with extensions | ❌ Custom implementation needed |
 
 ### Compared to Spring Kafka
-- **Lightweight Kotlin API**: Minimal abstractions, idiomatic Kotlin, coroutine-based instead of blocking listeners.
-- **Explicit control**: Per-topic subscription DSL, per-partition workers, clear ack vs commit semantics.
-- **Pluggable extensions**: Opt-in retry and pipeline middleware without framework coupling.
-- **Focus**: Streamlined feature set for Kotlin services that prefer coroutines over Spring threading models.
 
-Choose Quafka when you want a coroutine-first, lean, and highly controllable Kafka client with strong defaults and optional high-level extensions.
+| Feature | Quafka | Spring Kafka |
+|---------|--------|--------------|
+| **API Style** | ✅ Lightweight Kotlin API | ⚠️ Spring-based abstractions |
+| **Threading Model** | ✅ Coroutine-based | ⚠️ Spring threading |
+| **Control** | ✅ Explicit per-topic DSL | ⚠️ Annotation-based |
+| **Framework Coupling** | ✅ None required | ❌ Requires Spring |
+| **Extensions** | ✅ Opt-in middleware | ⚠️ Framework-tied |
 
-## Quafka Extensions
-
-Quafka-Extensions is a companion module designed to extend Quafka with advanced, high-level features that further simplify and enhance Kafka integrations. Here are the key features:
-
-### Serialization / Deserialization
-- Built-in support for common data format like JSON, eliminating the need to implement custom serializers for routine tasks.
-- Extensible design allows you to plug in custom serialization strategies, adapting to complex or domain-specific data structures.
-- Provides seamless type safety, leveraging Kotlin’s powerful type system to reduce runtime errors and improve developer productivity.
-
-### Message Delayer
-- Schedule message processing with fine-grained control over delays. This feature is perfect for implementing delayed retries, scheduled workflows, or event-driven architectures.
-- Supports both fixed and dynamic delay strategies, enabling flexible and context-aware scheduling.
-- Built to integrate smoothly with your existing pipelines, ensuring delayed messages are processed in order and without additional complexity.
-
-### Advanced Retry Mechanism
-- **In-Memory Retry**: Lightweight retry mechanism that retries transient failures directly in memory. Ideal for high-performance scenarios where persistence overhead is unnecessary.
-- **Multi-Topic Retry**: For more complex use cases, failed messages can be forwarded to designated retry topics with configurable backoff strategies. This ensures separation of transient and critical failures, allowing for targeted handling and monitoring.
-- Flexible retry policies, including exponential backoff, maximum retry attempts, and custom retry logic, provide fine-grained control over failure recovery.
-
-### Messaging Pipeline
-- Quafka-Extensions introduces a middleware-style architecture for processing messages, enabling the composition of reusable, modular pipeline steps. This ensures a clean separation of concerns and simplifies debugging and testing.
-- Example pipeline steps:
-  - **TracingPipelineStep**: Automatically integrates distributed tracing, allowing you to monitor and visualize the flow of messages across services.
-  - **LoggingPipelineStep**: Captures detailed logs for each processing stage, making it easy to trace issues or understand system behavior.
-  - **ErrorHandlerPipelineStep**: Centralized error management for catching and handling exceptions, ensuring that failures are logged and acted upon consistently.
-  - **DeserializationPipelineStep**: Converts raw message payloads into strongly-typed Kotlin objects, preparing them for business logic processing.
-  - **MessageProcessorPipelineStep**: Executes the core business logic, keeping it isolated from ancillary concerns like tracing or error handling.
-- Pipelines are fully customizable and extensible, empowering developers to create sophisticated message processing flows without sacrificing simplicity or clarity.
-
+**Choose Quafka** when you want a coroutine-first, lean, and highly controllable Kafka client with strong defaults and optional high-level extensions.
 
 ## Getting Started
 
 ### Installation
+
 Add the following dependency to your `build.gradle.kts`:
+
 ```kotlin
 dependencies {
-    implementation("com.trendyol:quafka:0.1.1")
+    implementation("com.trendyol:quafka:0.2.0")
 }
 ```
 
-### Basic Usage
+For extensions (retry, pipelines, etc.):
+```kotlin
+dependencies {
+    implementation("com.trendyol:quafka-extensions:0.2.0")
+}
+```
 
-#### Consumer
+### Try the Interactive Demo 🎮
+
+The fastest way to explore Quafka is through our interactive console application:
+
+```bash
+cd examples/console
+export Q_SERVERS="localhost:9092"
+./gradlew run
+```
+
+The console app provides a menu-driven interface to try all producer and consumer patterns. Perfect for learning and testing!
+
+See the [Console Demo README](examples/console/README.md) for details.
+
+### Quick Start
+
+#### Simple Consumer
+
 ```kotlin
 import com.trendyol.quafka.consumer.configuration.*
 import org.apache.kafka.common.serialization.StringDeserializer
 
-val props = HashMap<String, Any>()
-props[org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
-props[org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG] = "example-group"
+val props = mapOf(
+    "bootstrap.servers" to "localhost:9092",
+    "group.id" to "example-group"
+)
 
 val consumer = QuafkaConsumerBuilder<String, String>(props)
-  .withDeserializer(StringDeserializer(), StringDeserializer())
-  .subscribe("example-topic") {
-    withSingleMessageHandler { incomingMessage, consumerContext ->
-      println("Received: ${incomingMessage.toString(addValue = true, addHeaders = true)}")
-      incomingMessage.ack()
-    }.autoAckAfterProcess(true)
-  }
-  .build()
+    .withDeserializer(StringDeserializer(), StringDeserializer())
+    .subscribe("example-topic") {
+        withSingleMessageHandler { message, context ->
+            println("Received: ${message.value}")
+            message.ack()
+        }
+    }
+    .build()
 
 consumer.start()
 ```
 
-- [More Consumer Examples](docs/examples/consumers.md)
+#### Simple Producer
 
-
-#### Producer
 ```kotlin
 import com.trendyol.quafka.producer.*
 import com.trendyol.quafka.producer.configuration.QuafkaProducerBuilder
 import org.apache.kafka.common.serialization.StringSerializer
 
-val props = HashMap<String, Any>()
-props[org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
+val props = mapOf("bootstrap.servers" to "localhost:9092")
 
 val producer = QuafkaProducerBuilder<String?, String?>(props)
-  .withSerializer(StringSerializer(), StringSerializer())
-  .build()
+    .withSerializer(StringSerializer(), StringSerializer())
+    .build()
 
-val result: DeliveryResult = producer.send(
-  OutgoingMessage.create(
-    topic = "test-topic",
-    key = "key",
-    value = "value",
-    headers = emptyList()
-  )
+val result = producer.send(
+    OutgoingMessage.create(
+        topic = "test-topic",
+        key = "key",
+        value = "Hello, Quafka!"
+    )
 )
 ```
 
-- [More Producer Examples](docs/examples/producers.md)
+## Examples
 
-### Advanced Features
+### 📖 Consumer Examples
 
-#### Handling Backpressure
+#### Single Message Processing
+
+- **[Single Consumer Examples](docs/examples/single-consumer-examples.md)** - Comprehensive guide for single message consumers
+  - [Basic Single Consumer](docs/examples/single-consumer-examples.md#basic-single-consumer) - Simple message processing
+  - [Consumer with Backpressure](docs/examples/single-consumer-examples.md#consumer-with-backpressure) - Rate limiting and flow control
+  - [Pipeline Consumer](docs/examples/single-consumer-examples.md#pipeline-consumer) - Middleware-based processing
+  - [Retryable Consumer](docs/examples/single-consumer-examples.md#retryable-consumer) - Advanced error handling and retry
+  - [Custom Middleware](docs/examples/single-consumer-examples.md#custom-middleware) - Creating reusable middleware
+
+#### Batch Message Processing
+
+- **[Batch Consumer Examples](docs/examples/batch-consumer-examples.md)** - Comprehensive guide for batch message consumers
+  - [Basic Batch Consumer](docs/examples/batch-consumer-examples.md#basic-batch-consumer) - Simple batch processing
+  - [Pipelined Batch Consumer](docs/examples/batch-consumer-examples.md#pipelined-batch-consumer) - Middleware for batches
+  - [Advanced Pipelined Batch Consumer](docs/examples/batch-consumer-examples.md#advanced-pipelined-batch-consumer) - Complex workflows
+  - [Batch with Single Message Pipeline](docs/examples/batch-consumer-examples.md#batch-with-single-message-pipeline) - Hybrid approach
+  - [Advanced Batch with Single Message Pipeline](docs/examples/batch-consumer-examples.md#advanced-batch-with-single-message-pipeline) - Context sharing
+  - [Parallel Batch Processing](docs/examples/batch-consumer-examples.md#parallel-batch-processing) - Concurrent processing
+  - [Flexible Batch Processing](docs/examples/batch-consumer-examples.md#flexible-batch-processing) - Configurable modes
+  - [Concurrent with Attributes](docs/examples/batch-consumer-examples.md#concurrent-with-attributes) - Parallel + shared state
+  - [Custom Batch Middleware](docs/examples/batch-consumer-examples.md#custom-batch-middleware) - Reusable components
+
+### 📤 Producer Examples
+
+- **[Producer Examples](docs/examples/producer-examples.md)** - Comprehensive guide for producers
+  - [Basic Producer](docs/examples/producer-examples.md#basic-producer) - Simple message publishing
+  - [Batch Producer](docs/examples/producer-examples.md#batch-producer) - Bulk message operations
+  - [JSON Producer with Extensions](docs/examples/producer-examples.md#json-producer-with-extensions) - Type-safe JSON serialization
+  - [Producer with Error Handling](docs/examples/producer-examples.md#producer-with-error-handling) - Robust error handling and DLQ
+  - [Producer with Custom Headers](docs/examples/producer-examples.md#producer-with-custom-headers) - Metadata and tracing
+  - [Best Practices](docs/examples/producer-examples.md#best-practices) - Production-ready patterns
+
+### ⚙️ Advanced Features
+
+#### Backpressure Control
+
 ```kotlin
 import kotlin.time.Duration.Companion.minutes
 
 val consumer = QuafkaConsumerBuilder<String, String>(props)
-  .withDeserializer(StringDeserializer(), StringDeserializer())
-  .subscribe("example-topic") {
-    withSingleMessageHandler { msg, ctx ->
-      // slow work here
-      msg.ack()
-    }.withBackpressure(backpressureBufferSize = 10_000, backpressureReleaseTimeout = 1.minutes)
-  }
-  .build()
+    .withDeserializer(StringDeserializer(), StringDeserializer())
+    .subscribe("example-topic") {
+        withSingleMessageHandler { msg, ctx ->
+            // Slow processing work
+            processMessage(msg)
+            msg.ack()
+        }.withBackpressure(
+            backpressureBufferSize = 10_000,
+            backpressureReleaseTimeout = 1.minutes
+        )
+    }
+    .build()
 ```
 
 #### Batch Publishing
+
 ```kotlin
 val messages = (1..100).map { index ->
-  OutgoingMessage.create(
-    topic = "test-topic",
-    key = "key-$index",
-    value = "value-$index"
-  )
+    OutgoingMessage.create(
+        topic = "test-topic",
+        key = "key-$index",
+        value = "value-$index"
+    )
 }
+
 val results: Collection<DeliveryResult> = producer.sendAll(messages)
 ```
 
-- [More examples](examples/console/src/main/kotlin/com/trendyol/quafka/examples/console/consumers/)
+## Quafka Extensions
 
-## [Fundamentals](docs/fundamentals.md)
-## [How messages are processed](docs/processing.md)
+Quafka-Extensions is a companion module that provides advanced, high-level features:
+
+### 🔄 Serialization / Deserialization
+
+- Built-in support for JSON and common formats
+- Extensible design for custom serialization strategies
+- Type-safe serialization leveraging Kotlin's type system
+
+### ⏰ Message Delayer
+
+- Schedule message processing with fine-grained delay control
+- Fixed and dynamic delay strategies
+- Perfect for delayed retries and scheduled workflows
+
+### 🔁 Advanced Retry Mechanism
+
+- **In-Memory Retry**: Lightweight retry for transient failures
+- **Multi-Topic Retry**: Forward to dedicated retry topics with configurable backoff
+- **Flexible Policies**: Exponential backoff, max attempts, custom retry logic
+
+### 🔗 Messaging Pipeline
+
+Middleware-style architecture for composable message processing:
+
+```kotlin
+import com.trendyol.quafka.extensions.consumer.single.pipelines.PipelineMessageHandler.Companion.usePipelineMessageHandler
+
+val consumer = QuafkaConsumerBuilder<String, String>(props)
+    .withDeserializer(StringDeserializer(), StringDeserializer())
+    .subscribe("example-topic") {
+        usePipelineMessageHandler {
+            // Logging middleware
+            use { envelope, next ->
+                logger.info("Processing: ${envelope.message.offset}")
+                next()
+            }
+            
+            // Validation middleware
+            use { envelope, next ->
+                if (isValid(envelope.message.value)) {
+                    next()
+                } else {
+                    logger.warn("Invalid message")
+                }
+            }
+            
+            // Business logic
+            use { envelope, next ->
+                processMessage(envelope.message.value)
+                envelope.message.ack()
+                next()
+            }
+        }
+    }
+    .build()
+```
+
+**Available Pipeline Steps:**
+- **TracingPipelineStep**: Distributed tracing integration
+- **LoggingPipelineStep**: Detailed logging for each stage
+- **ErrorHandlerPipelineStep**: Centralized error management
+- **DeserializationPipelineStep**: Type-safe deserialization
+- **Custom Middleware**: Create your own reusable steps
+
+## Documentation
+
+### 📚 Core Documentation
+
+- **[Fundamentals](docs/fundamentals.md)** - Core concepts and architecture
+- **[Message Processing](docs/processing.md)** - How messages are processed internally
+
+### 📖 Example Guides
+
+- **[Single Consumer Examples](docs/examples/single-consumer-examples.md)** - Detailed single message patterns
+- **[Batch Consumer Examples](docs/examples/batch-consumer-examples.md)** - Detailed batch processing patterns
+- **[Producer Examples](docs/examples/producer-examples.md)** - Producer patterns and best practices
+
+### 🔧 Extensions Documentation
+
+- **[Pipeline Architecture](lib/quafka-extensions/src/main/kotlin/com/trendyol/quafka/extensions/consumer/batch/pipelines/README.md)** - Batch pipeline middleware guide
+
+### 🎮 Interactive Demo
+
+- **[Console Demo Application](examples/console/README.md)** - Interactive CLI for testing all Quafka patterns
+  - Producer examples (Basic, Batch, JSON, Headers)
+  - Single consumer examples (Basic, Backpressure, Pipeline, Retry)
+  - Batch consumer examples (8 different patterns)
+  - Easy-to-use menu-driven interface
 
 ## Status
 
 > [!WARNING]
-> While Quafka is production-ready and extensively used, the API is not yet fully stabilized. Breaking changes may
-> occur in minor releases, but migration guides will always be provided.
+> While Quafka is **production-ready** and extensively used at Trendyol, the API is not yet fully stabilized. Breaking changes may occur in minor releases, but migration guides will always be provided.
 
-> Report any issue or bug [in the GitHub repository.](https://github.com/Trendyol/quafka/issues)
-> 
-## Contributions 
-Contributions are welcome! Whether it's:
+> [!NOTE]
+> Report any issue or bug in the [GitHub repository](https://github.com/Trendyol/quafka/issues).
 
-* 🐛 [Bug reports](https://github.com/Trendyol/quafka/issues)
-* 💡 [Feature requests](https://github.com/Trendyol/quafka/issues)
-* 📖 Documentation improvements
-* 🚀 Code contributions
+## Contributing
 
+Contributions are welcome! We appreciate:
+
+* 🐛 **[Bug reports](https://github.com/Trendyol/quafka/issues)** - Help us identify and fix issues
+* 💡 **[Feature requests](https://github.com/Trendyol/quafka/issues)** - Share your ideas for improvements
+* 📖 **Documentation improvements** - Help make our docs better
+* 🚀 **Code contributions** - Submit pull requests
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
 
 ## License
-Quafka is licensed under the Apache License. See the [LICENSE](LICENSE) file for details.
 
+Quafka is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
+---
 
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/Trendyol">Trendyol</a>
+</p>

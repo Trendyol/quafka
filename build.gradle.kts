@@ -1,4 +1,5 @@
-import org.gradle.kotlin.dsl.libs
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
 import org.gradle.plugins.ide.idea.model.IdeaModel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -8,6 +9,8 @@ plugins {
     alias(libs.plugins.testLogger)
     alias(libs.plugins.kover)
     alias(libs.plugins.maven.publish)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.javadoc)
     idea
     java
 }
@@ -26,10 +29,11 @@ kover {
     }
 }
 
-val koverProjects = subprojects.of("lib")
+val publishedProjects = subprojects.of("lib")
 dependencies {
-    koverProjects.forEach {
+    publishedProjects.forEach {
         kover(it)
+        dokka(it)
     }
 }
 
@@ -116,17 +120,33 @@ subprojects.of("lib", "examples") {
     }
 }
 
-val publishedProjects = listOf(
-    "quafka",
-    "quafka-extensions"
-)
-
-subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
+publishedProjects.forEvery {
     val p = this
-    println("publishing $name")
+
     apply {
         plugin("java")
         plugin(rootProject.libs.plugins.maven.publish.pluginId)
+        plugin(rootProject.libs.plugins.dokka.pluginId)
+        plugin(rootProject.libs.plugins.javadoc.pluginId)
+    }
+
+    dokka {
+        dokkaPublications.html {
+            suppressInheritedMembers.set(true)
+            failOnWarning.set(false)
+        }
+        dokkaSourceSets.main {
+            skipDeprecated = false
+            sourceLink {
+                localDirectory = project.projectDir
+                remoteUrl("https://github.com/Trendyol/quafka/tree/master/lib/${p.name}/src")
+                remoteLineSuffix.set("#L")
+            }
+            samples.from("examples")
+        }
+        pluginsConfiguration.html {
+            footerMessage.set("(c) Trendyol")
+        }
     }
 
     configure<JavaPluginExtension> {
@@ -147,6 +167,12 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
     }
 
     mavenPublishing {
+        configure(
+            KotlinJvm(
+                javadocJar = JavadocJar.Dokka("dokkaHtmlJar"),
+                sourcesJar = true
+            )
+        )
         publishToMavenCentral()
         coordinates(groupId = rootProject.group.toString(), artifactId = project.name, version = rootProject.version.toString())
 
@@ -176,4 +202,25 @@ subprojects.of("lib", filter = { p -> publishedProjects.contains(p.name) }) {
             signAllPublications()
         }
     }
+}
+
+dokka {
+    dokkaPublications.html {
+        outputDirectory.set(rootDir.resolve("_dokka"))
+
+        pluginsConfiguration.html {
+            customAssets.from("docs/assets/logo.jpeg")
+            footerMessage.set("(c) Trendyol")
+        }
+        includes.from(
+            project.layout.projectDirectory.file("README.md"),
+            project.layout.projectDirectory.dir("docs/fundamentals.md")
+        )
+    }
+}
+
+val dokkaHtmlJar by tasks.registering(Jar::class) {
+    description = "A HTML Documentation JAR containing Dokka HTML"
+    from(tasks.dokkaGeneratePublicationHtml.flatMap { it.outputDirectory })
+    archiveClassifier.set("html-doc")
 }

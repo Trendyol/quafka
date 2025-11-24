@@ -8,7 +8,7 @@ import com.trendyol.quafka.consumer.configuration.QuafkaConsumerOptions
 import kotlinx.coroutines.*
 import org.apache.kafka.clients.consumer.*
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.errors.*
+import org.apache.kafka.common.errors.WakeupException
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.util.concurrent.atomic.AtomicBoolean
@@ -81,7 +81,7 @@ internal class PollingConsumer<TKey, TValue>(
      * the consumer, closes the consumer within the graceful shutdown timeout, and publishes a consumer
      * stopped event.
      */
-    private suspend fun shutdownConsumer() {
+    private fun shutdownConsumer() {
         logger.info("Stopping Quafka consumer...")
         isClosing.set(true)
         try {

@@ -77,14 +77,8 @@ enum class DelayStrategy {
     FOR_FIXED_DURATION
 }
 
-open class MessageDelayer(
-    val delayFn: suspend (duration: Duration) -> Unit = { duration -> kotlinx.coroutines.delay(duration) }
-) {
-    data class DelayOptions(
-        val duration: Duration,
-        val strategy: DelayStrategy,
-        val publishedAt: Instant
-    ) {
+open class MessageDelayer(val delayFn: suspend (duration: Duration) -> Unit = { duration -> kotlinx.coroutines.delay(duration) }) {
+    data class DelayOptions(val duration: Duration, val strategy: DelayStrategy, val publishedAt: Instant) {
         fun hasDelay() = duration != Duration.ZERO
 
         companion object {

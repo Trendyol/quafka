@@ -21,9 +21,7 @@ import kotlin.time.measureTimedValue
  * @param TValue The type of the message value.
  * @property quafkaProducerOptions The configuration options for the producer.
  */
-class QuafkaProducer<TKey, TValue> internal constructor(
-    val quafkaProducerOptions: QuafkaProducerOptions<TKey, TValue>
-) : Closeable {
+class QuafkaProducer<TKey, TValue> internal constructor(val quafkaProducerOptions: QuafkaProducerOptions<TKey, TValue>) : Closeable {
     /**
      * The underlying Kafka producer instance used for sending messages.
      */

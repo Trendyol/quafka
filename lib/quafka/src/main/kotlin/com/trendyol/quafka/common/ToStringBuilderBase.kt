@@ -19,7 +19,7 @@ open class ToStringBuilderBase {
     open fun formatValue(value: Any?): String = when (value) {
         null -> ""
         is String -> value
-        is ByteArray -> String(value, HeaderParsers.defaultCharset)
+        is ByteArray -> String(value, DefaultCharset)
         else -> value.toString()
     }
 

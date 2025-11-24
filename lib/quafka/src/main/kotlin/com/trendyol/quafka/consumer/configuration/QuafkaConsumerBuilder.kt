@@ -176,3 +176,26 @@ interface SubscriptionBuildStep<TKey, TValue> : SubscriptionStep<TKey, TValue> {
      */
     fun build(): QuafkaConsumer<TKey, TValue>
 }
+
+/**
+ * Extension function to set the same deserializer for both key and value.
+ *
+ * This is a convenience method for cases where the key and value types are the same.
+ * Instead of calling `withDeserializer(deserializer, deserializer)`, you can simply call
+ * `withDeserializer(deserializer)`.
+ *
+ * @param T The common type for both key and value.
+ * @param deserializer The deserializer to use for both key and value deserialization.
+ * @return The builder instance for method chaining.
+ *
+ * @sample
+ * ```kotlin
+ * val consumer = QuafkaConsumerBuilder<String, String>(properties)
+ *     .withDeserializer(StringDeserializer())
+ *     .subscribe("topic") { /* ... */ }
+ *     .build()
+ * ```
+ */
+fun <T> QuafkaConsumerBuilder<T, T>.withDeserializer(
+    deserializer: Deserializer<T>
+): QuafkaConsumerBuilder<T, T> = withDeserializer(deserializer, deserializer)

@@ -1,20 +1,21 @@
 package com.trendyol.quafka.consumer.configuration
 
-import com.trendyol.quafka.consumer.errorHandlers.FallbackErrorHandler
 import com.trendyol.quafka.consumer.messageHandlers.*
 import com.trendyol.quafka.consumer.messageHandlers.BatchMessageHandlingStrategy.Companion.DEFAULT_BATCH_SIZE
 import com.trendyol.quafka.consumer.messageHandlers.BatchMessageHandlingStrategy.Companion.DEFAULT_BATCH_TIMEOUT
+import com.trendyol.quafka.consumer.messageHandlers.ResilientHandler
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Adds a **single-message** handler and lets you fine-tune its strategy.
  *
- * You must call either [withSingleMessageHandler] **or** [withBatchMessageHandler] before any other configuration.
+ * You must call either [withSingleMessageHandler] **or** [SubscriptionWithBatchMessageHandlingStep.withBatchMessageHandler] before any other configuration.
  */
 interface SubscriptionWithSingleMessageHandlingStep<TKey, TValue> {
     /**
      * @param handler   The function that processes each incoming message.
-     * @param configure Optional DSL block to tweak the [`SingleMessageStrategy`].
+     * @param configure Optional DSL block to tweak the [SingleMessageHandlingStrategy].
      *
      * @return next step where subscription-level options can be set.
      */
@@ -27,14 +28,14 @@ interface SubscriptionWithSingleMessageHandlingStep<TKey, TValue> {
 /**
  * Adds a **batch** handler and lets you fine-tune its strategy.
  *
- * You must call either [withSingleMessageHandler] **or** [withBatchMessageHandler] before any other configuration.
+ * You must call either [SubscriptionWithSingleMessageHandlingStep.withSingleMessageHandler] **or** [withBatchMessageHandler] before any other configuration.
  */
 interface SubscriptionWithBatchMessageHandlingStep<TKey, TValue> {
     /**
      * @param handler      The function that processes each batch.
      * @param batchSize    Maximum messages per batch (default = [DEFAULT_BATCH_SIZE]).
      * @param batchTimeout Max wait time for a batch to fill (default = [DEFAULT_BATCH_TIMEOUT]).
-     * @param configure    Optional DSL block to tweak the [`BatchMessageStrategy`].
+     * @param configure    Optional DSL block to tweak the [BatchMessageHandlingStrategy].
      *
      * @return next step where subscription-level options can be set.
      */
@@ -82,15 +83,15 @@ interface SubscriptionOptionsStep<TKey, TValue> {
     fun autoAckAfterProcess(value: Boolean): SubscriptionOptionsStep<TKey, TValue>
 
     /**
-     * Configures the fallback error handler for message processing failures.
+     * Configures the resilient handler for message processing failures.
      *
-     * The fallback error handler is the last line of defense when message processing fails.
-     * It determines how failures are handled (e.g., retry, skip, or custom behavior).
+     * The resilient handler wraps message processing execution and controls how failures are handled
+     * (e.g., retry with exponential backoff, skip and log).
      *
-     * @param fallbackErrorHandler The error handler to use for processing failures.
+     * @param resilientHandler The resilient handler to use for processing failures.
      * @return The current instance of [SubscriptionBuilder] to allow method chaining.
      */
-    fun withFallbackErrorHandler(fallbackErrorHandler: FallbackErrorHandler<TKey, TValue>): SubscriptionOptionsStep<TKey, TValue>
+    fun withResilientHandler(resilientHandler: ResilientHandler<TKey, TValue>): SubscriptionOptionsStep<TKey, TValue>
 
     /**
      * Configures backpressure settings for the consumer.
@@ -113,7 +114,12 @@ internal class SubscriptionBuilder<TKey, TValue> :
     SubscriptionHandlerChoiceStep<TKey, TValue> {
     private var strategyFactory: (() -> MessageHandlingStrategy<TKey, TValue>)? = null
     private var autoAck: Boolean = true
-    private var fallbackErrorHandler: FallbackErrorHandler<TKey, TValue> = FallbackErrorHandler.RetryOnFailure()
+    private val defaultSafetyNetHandler: ResilientHandler.Stopping<TKey, TValue> = ResilientHandler.Stopping()
+    private var resilientHandler: ResilientHandler<TKey, TValue> = ResilientHandler.WithSafetyNet(
+        userHandler = ResilientHandler.Retrying.basic(initialInterval = 30.seconds, maxAttempts = 1000),
+        safetyNetHandler = defaultSafetyNetHandler
+    )
+
     private var backpressureBufferSize: Int = DEFAULT_BACKPRESSURE_BUFFER_SIZE
     private var backpressureReleaseTimeout: Duration = DEFAULT_BACKPRESSURE_RELEASE_TIMEOUT
 
@@ -121,8 +127,12 @@ internal class SubscriptionBuilder<TKey, TValue> :
         this.autoAck = value
     }
 
-    override fun withFallbackErrorHandler(fallbackErrorHandler: FallbackErrorHandler<TKey, TValue>) = apply {
-        this.fallbackErrorHandler = fallbackErrorHandler
+    override fun withResilientHandler(resilientHandler: ResilientHandler<TKey, TValue>) = apply {
+        // Wrap user's handler with safety net for extra protection
+        this.resilientHandler = ResilientHandler.WithSafetyNet(
+            userHandler = resilientHandler,
+            safetyNetHandler = defaultSafetyNetHandler
+        )
     }
 
     override fun withBackpressure(
@@ -138,7 +148,7 @@ internal class SubscriptionBuilder<TKey, TValue> :
         handler: SingleMessageHandler<TKey, TValue>
     ): SubscriptionOptionsStep<TKey, TValue> {
         this.strategyFactory = {
-            SingleMessageHandlingStrategy<TKey, TValue>(handler, this.autoAck, this.fallbackErrorHandler).apply(configure)
+            SingleMessageHandlingStrategy(handler, this.autoAck, this.resilientHandler).apply(configure)
         }
         return this
     }
@@ -150,7 +160,7 @@ internal class SubscriptionBuilder<TKey, TValue> :
         handler: BatchMessageHandler<TKey, TValue>
     ): SubscriptionOptionsStep<TKey, TValue> {
         this.strategyFactory = {
-            BatchMessageHandlingStrategy<TKey, TValue>(handler, batchSize, batchTimeout, autoAck, fallbackErrorHandler).apply(configure)
+            BatchMessageHandlingStrategy(handler, batchSize, batchTimeout, autoAck, resilientHandler).apply(configure)
         }
         return this
     }

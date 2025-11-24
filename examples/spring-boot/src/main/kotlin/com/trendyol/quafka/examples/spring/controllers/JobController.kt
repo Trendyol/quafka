@@ -5,7 +5,7 @@ import com.trendyol.quafka.examples.spring.configuration.KafkaConfig
 import com.trendyol.quafka.examples.spring.models.Job
 import com.trendyol.quafka.examples.spring.persistence.JobRepository
 import com.trendyol.quafka.extensions.producer.OutgoingMessageBuilder
-import com.trendyol.quafka.extensions.serialization.json.typeResolvers.newMessageWithTypeInfo
+import com.trendyol.quafka.extensions.serialization.json.newMessageWithTypeInfo
 import com.trendyol.quafka.producer.QuafkaProducer
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ServerWebExchange

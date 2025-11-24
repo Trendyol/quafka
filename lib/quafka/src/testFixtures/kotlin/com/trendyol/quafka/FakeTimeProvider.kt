@@ -3,9 +3,7 @@ package com.trendyol.quafka
 import com.trendyol.quafka.common.TimeProvider
 import java.time.Instant
 
-class FakeTimeProvider(
-    private val instant: Instant
-) : TimeProvider {
+class FakeTimeProvider(private val instant: Instant) : TimeProvider {
     companion object {
         fun parse(instant: String): TimeProvider = FakeTimeProvider(Instant.parse(instant))
 

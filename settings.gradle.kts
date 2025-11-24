@@ -1,10 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
-import org.gradle.internal.impldep.org.eclipse.jgit.hooks.Hooks.preCommit
-
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "quafka"
+rootProject.name = "quafka-root"
 include(
     "lib",
     "lib:quafka",

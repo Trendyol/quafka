@@ -85,5 +85,5 @@ kotlin-ide/
 build
 .kotlin
 lib/**/reports
-
+_dokka
 # Temp

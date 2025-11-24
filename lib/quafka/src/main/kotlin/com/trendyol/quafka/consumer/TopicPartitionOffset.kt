@@ -10,11 +10,7 @@ import kotlin.jvm.optionals.getOrNull
  * @param partition The partition to which the offset belongs.
  * @param offset The offset for the topic partition.
  */
-data class TopicPartitionOffset(
-    val topic: String,
-    val partition: Int,
-    val offset: Long
-) {
+data class TopicPartitionOffset(val topic: String, val partition: Int, val offset: Long) {
     constructor(topicPartition: TopicPartition, offset: Long) : this(topicPartition.topic, topicPartition.partition, offset)
 
     val topicPartition: TopicPartition
